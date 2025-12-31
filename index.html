@@ -3,34 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <title>JUO Legacy Scanner</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" href="style.css">
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
-  <!-- HEADER -->
-  <header class="app-header">
-    <h2>JUO Legacy Scanner</h2>
-    <span>By Joshua Orizu</span>
-  </header>
+  <h2>JUO Legacy Scanner</h2>
 
-  <!-- CAMERA AREA -->
-  <main class="camera-wrapper">
-    <video id="preview" autoplay playsinline muted></video>
-    <canvas id="captureCanvas"></canvas>
-  </main>
+  <div class="controls">
+    <button id="startCameraBtn">Start Camera</button>
+    <button id="captureBtn">Capture Page</button>
+    <button id="downloadPdfBtn">Download PDF</button>
+    <button id="helpBtn">Help</button>
+  </div>
 
-  <!-- CONTROLS -->
-  <footer class="control-bar">
-    <button id="startCameraBtn">Camera</button>
-    <button id="captureBtn">Capture</button>
-    <button id="exportPdfBtn">PDF</button>
-    <button id="exportPngBtn">PNG</button>
-  </footer>
+  <div class="options">
+    <label>
+      Page:
+      <select id="pageFormat">
+        <option value="A4" selected>A4</option>
+        <option value="A3">A3</option>
+        <option value="LETTER">Letter</option>
+      </select>
+    </label>
 
-  <!-- STATUS -->
+    <label>
+      DPI:
+      <select id="dpiSelect">
+        <option value="150">150</option>
+        <option value="300" selected>300</option>
+        <option value="400">400</option>
+      </select>
+    </label>
+
+    <label>
+      Quality:
+      <input type="range" id="qualitySlider" min="0.5" max="1" step="0.05" value="0.85">
+      <span id="qualityValue">0.85</span>
+    </label>
+  </div>
+
+  <div id="progressContainer">
+    <div id="progressBar"></div>
+  </div>
+
+  <video id="preview" autoplay playsinline muted></video>
+  <canvas id="captureCanvas"></canvas>
+
   <div id="status"></div>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal">
+    <div class="modal-content">
+      <span class="closeBtn">&times;</span>
+      <h3>How to Use</h3>
+      <p>1. Start camera and allow permission.</p>
+      <p>2. Adjust page size, DPI, and quality.</p>
+      <p>3. Capture pages one by one.</p>
+      <p>4. Download PDF when done.</p>
+      <p>Tip: Medium DPI and 0.85 quality works best for large documents.</p>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>
