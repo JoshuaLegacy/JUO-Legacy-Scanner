@@ -3,18 +3,18 @@ Scanner Name: JUO Legacy Scanner
 Author: Joshua Orizu
 Camera Preparation
 1.	Click Start Camera.
-o	On first use, your browser will ask for camera permissions. Allow access.
-o	The rear camera is automatically selected (environment-facing).
+a	On first use, your browser will ask for camera permissions. Allow access.
+b	The rear camera is automatically selected (environment-facing).
 2.	Ensure your document is well-lit and positioned fully within the camera frame.
 3.	Use a flat surface and hold the device steady to reduce blur.
-3. Setting Scan Options (Step 4 & 5)
+4. Setting Scan Options (Step 4 & 5)
 Before capturing pages, configure the options:
 Option	Purpose
 Page Format	Select A3, A4, or Letter depending on document size.
 DPI	Low (150) → faster, smaller file; Medium (300) → standard; High (400) → maximum quality.
 Image Quality	Adjust JPEG compression (0.5 → 1.0). Lower values reduce PDF size.
 Tip: For very large documents (100+ pages), use Medium DPI and 0.7–0.85 image quality for balance between clarity and file size.
-4. Capturing Pages
+5. Capturing Pages
 1.	Align the document and click Capture Page.
 o	Only one page is kept in memory at a time to prevent crashes.
 o	After each capture, the page is normalized and automatically added to the PDF.
