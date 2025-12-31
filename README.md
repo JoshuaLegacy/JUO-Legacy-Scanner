@@ -1,11 +1,7 @@
 JUO Legacy Scanner Usage Guide
 Scanner Name: JUO Legacy Scanner
 Author: Joshua Orizu
-1. Setup
-1.	Place the three files — index.html, style.css, and script.js — in the same folder.
-2.	Ensure your browser supports HTTPS and MediaDevices API (Chrome, Firefox, Edge, Safari mobile).
-3.	Open index.html in your mobile or desktop browser.
-2. Camera Preparation
+Camera Preparation
 1.	Click Start Camera.
 o	On first use, your browser will ask for camera permissions. Allow access.
 o	The rear camera is automatically selected (environment-facing).
