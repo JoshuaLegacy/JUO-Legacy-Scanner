@@ -3,11 +3,174 @@
 <head>
   <meta charset="UTF-8">
   <title>JUO Legacy Scanner</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <style>
+    /* Global Styles */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 10px;
+      background-color: #f4f4f9;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
 
-  <link rel="stylesheet" href="style.css">
+    h2 {
+      margin: 10px 0;
+      font-size: 1.2rem;
+      color: #2c3e50;
+    }
 
-  <!-- jsPDF -->
+    /* Compact Button Grid */
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      max-width: 420px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 5px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    button:active {
+      background-color: #388E3C;
+      transform: translateY(1px);
+    }
+
+    #helpBtn { background-color: #5d6d7e; }
+    #downloadPdfBtn { background-color: #2196F3; }
+
+    /* Compact Options Section */
+    .options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+      max-width: 420px;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    .option-group {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .options label {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .options select, .options input {
+      width: 100%;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    .slider-group {
+      grid-column: span 2;
+      width: 100%;
+    }
+
+    /* Progress Bar */
+    #progressContainer {
+      width: 100%;
+      max-width: 420px;
+      height: 10px;
+      background-color: #e0e0e0;
+      border-radius: 5px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+
+    #progressBar {
+      height: 100%;
+      width: 0%;
+      background-color: #4CAF50;
+      transition: width 0.3s ease;
+    }
+
+    /* Optimized Video Preview (Viewing Window) */
+    video {
+      width: 100%;
+      max-width: 420px;
+      height: auto;
+      max-height: 45vh; /* Prevents video from taking more than 45% of screen height */
+      background-color: #000;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      object-fit: cover;
+    }
+
+    canvas { display: none; }
+
+    #status {
+      margin-top: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #27ae60;
+      min-height: 1.2em;
+    }
+
+    /* Modal Styling */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.6);
+      backdrop-filter: blur(3px);
+    }
+
+    .modal-content {
+      background-color: #fff;
+      margin: 15% auto;
+      padding: 20px;
+      width: 85%;
+      max-width: 400px;
+      border-radius: 12px;
+      text-align: left;
+    }
+
+    .closeBtn {
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 20px;
+    }
+
+    @media (max-height: 600px) {
+      video { max-height: 35vh; }
+      h2 { font-size: 1rem; margin: 5px 0; }
+    }
+  </style>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -18,33 +181,32 @@
     <button id="startCameraBtn">Start Camera</button>
     <button id="captureBtn">Capture Page</button>
     <button id="downloadPdfBtn">Download PDF</button>
-    <button id="helpBtn">Help</button>
+    <button id="helpBtn">Guide</button>
   </div>
 
   <div class="options">
-    <label>
-      Page:
+    <div class="option-group">
+      <label for="pageFormat">Format</label>
       <select id="pageFormat">
         <option value="A4" selected>A4</option>
         <option value="A3">A3</option>
         <option value="LETTER">Letter</option>
       </select>
-    </label>
+    </div>
 
-    <label>
-      DPI:
+    <div class="option-group">
+      <label for="dpiSelect">DPI</label>
       <select id="dpiSelect">
-        <option value="150">150</option>
-        <option value="300" selected>300</option>
-        <option value="400">400</option>
+        <option value="150">Low (150)</option>
+        <option value="300" selected>Mid (300)</option>
+        <option value="400">High (400)</option>
       </select>
-    </label>
+    </div>
 
-    <label>
-      Quality:
+    <div class="option-group slider-group">
+      <label for="qualitySlider">Quality: <span id="qualityValue">0.85</span></label>
       <input type="range" id="qualitySlider" min="0.5" max="1" step="0.05" value="0.85">
-      <span id="qualityValue">0.85</span>
-    </label>
+    </div>
   </div>
 
   <div id="progressContainer">
@@ -52,20 +214,19 @@
   </div>
 
   <video id="preview" autoplay playsinline muted></video>
-  <canvas id="captureCanvas"></canvas>
-
+  
   <div id="status"></div>
 
-  <!-- Help Modal -->
+  <canvas id="captureCanvas"></canvas>
+
   <div id="helpModal" class="modal">
     <div class="modal-content">
       <span class="closeBtn">&times;</span>
-      <h3>How to Use</h3>
-      <p>1. Start camera and allow permission.</p>
-      <p>2. Adjust page size, DPI, and quality.</p>
-      <p>3. Capture pages one by one.</p>
-      <p>4. Download PDF when done.</p>
-      <p>Tip: Medium DPI and 0.85 quality works best for large documents.</p>
+      <h3>Usage Guide</h3>
+      <p>1. <strong>Start:</strong> Enable camera.</p>
+      <p>2. <strong>Capture:</strong> Snap each page.</p>
+      <p>3. <strong>Download:</strong> Save your PDF when finished.</p>
+      <p><small>Tip: High DPI increases file size. Use 150-300 for long documents.</small></p>
     </div>
   </div>
 
