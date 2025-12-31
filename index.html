@@ -5,27 +5,25 @@
   <title>JUO Legacy Scanner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
   <style>
-    /* Global Styles */
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, system-ui, sans-serif;
       text-align: center;
       margin: 0;
       padding: 10px;
       background-color: #f4f4f9;
-      color: #333;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
-    h2 {
-      margin: 10px 0;
-      font-size: 1.2rem;
-      color: #2c3e50;
-    }
+    h2 { margin: 10px 0; font-size: 1.2rem; }
 
-    /* Compact Button Grid */
+    /* Controls Grid */
     .controls {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -43,20 +41,13 @@
       font-size: 14px;
       font-weight: bold;
       border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.2s;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    button:active {
-      background-color: #388E3C;
-      transform: translateY(1px);
     }
 
     #helpBtn { background-color: #5d6d7e; }
     #downloadPdfBtn { background-color: #2196F3; }
 
-    /* Compact Options Section */
+    /* Options Section */
     .options {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -66,72 +57,24 @@
       background: white;
       padding: 10px;
       border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       margin-bottom: 10px;
       font-size: 13px;
+      box-sizing: border-box;
     }
 
-    .option-group {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-    }
+    .option-group { display: flex; flex-direction: column; align-items: flex-start; }
+    .slider-group { grid-column: span 2; width: 100%; }
+    .options select, .options input { width: 100%; padding: 6px; margin-top: 4px; }
 
-    .options label {
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
-
-    .options select, .options input {
-      width: 100%;
-      padding: 6px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-    }
-
-    .slider-group {
-      grid-column: span 2;
-      width: 100%;
-    }
-
-    /* Progress Bar */
-    #progressContainer {
-      width: 100%;
-      max-width: 420px;
-      height: 10px;
-      background-color: #e0e0e0;
-      border-radius: 5px;
-      margin-bottom: 10px;
-      overflow: hidden;
-    }
-
-    #progressBar {
-      height: 100%;
-      width: 0%;
-      background-color: #4CAF50;
-      transition: width 0.3s ease;
-    }
-
-    /* Optimized Video Preview (Viewing Window) */
+    /* Preview Window */
     video {
       width: 100%;
       max-width: 420px;
       height: auto;
-      max-height: 45vh; /* Prevents video from taking more than 45% of screen height */
+      max-height: 40vh;
       background-color: #000;
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       object-fit: cover;
-    }
-
-    canvas { display: none; }
-
-    #status {
-      margin-top: 8px;
-      font-size: 13px;
-      font-weight: bold;
-      color: #27ae60;
-      min-height: 1.2em;
     }
 
     /* Modal Styling */
@@ -139,39 +82,34 @@
       display: none;
       position: fixed;
       z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.6);
-      backdrop-filter: blur(3px);
+      left: 0; top: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.8);
+      padding-top: 20px;
     }
 
     .modal-content {
       background-color: #fff;
-      margin: 15% auto;
-      padding: 20px;
-      width: 85%;
-      max-width: 400px;
+      margin: auto;
+      padding: 15px;
+      width: 90%;
+      max-width: 450px;
       border-radius: 12px;
-      text-align: left;
+      position: relative;
     }
 
-    .closeBtn {
-      float: right;
-      font-size: 28px;
-      font-weight: bold;
-      cursor: pointer;
-      line-height: 20px;
+    /* Cropper Container */
+    .cropper-container-box {
+      width: 100%;
+      height: 60vh;
+      background-color: #eee;
+      margin-bottom: 10px;
+      overflow: hidden;
     }
 
-    @media (max-height: 600px) {
-      video { max-height: 35vh; }
-      h2 { font-size: 1rem; margin: 5px 0; }
-    }
+    img { max-width: 100%; }
+
+    #status { margin-top: 8px; font-size: 13px; font-weight: bold; color: #27ae60; }
   </style>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -186,50 +124,148 @@
 
   <div class="options">
     <div class="option-group">
-      <label for="pageFormat">Format</label>
+      <label>Format</label>
       <select id="pageFormat">
         <option value="A4" selected>A4</option>
         <option value="A3">A3</option>
         <option value="LETTER">Letter</option>
       </select>
     </div>
-
     <div class="option-group">
-      <label for="dpiSelect">DPI</label>
+      <label>DPI</label>
       <select id="dpiSelect">
-        <option value="150">Low (150)</option>
-        <option value="300" selected>Mid (300)</option>
-        <option value="400">High (400)</option>
+        <option value="150">150</option>
+        <option value="300" selected>300</option>
       </select>
     </div>
-
     <div class="option-group slider-group">
-      <label for="qualitySlider">Quality: <span id="qualityValue">0.85</span></label>
+      <label>Quality: <span id="qualityValue">0.85</span></label>
       <input type="range" id="qualitySlider" min="0.5" max="1" step="0.05" value="0.85">
     </div>
   </div>
 
-  <div id="progressContainer">
-    <div id="progressBar"></div>
-  </div>
-
   <video id="preview" autoplay playsinline muted></video>
-  
   <div id="status"></div>
+  <canvas id="captureCanvas" style="display:none;"></canvas>
 
-  <canvas id="captureCanvas"></canvas>
-
-  <div id="helpModal" class="modal">
+  <div id="cropModal" class="modal">
     <div class="modal-content">
-      <span class="closeBtn">&times;</span>
-      <h3>Usage Guide</h3>
-      <p>1. <strong>Start:</strong> Enable camera.</p>
-      <p>2. <strong>Capture:</strong> Snap each page.</p>
-      <p>3. <strong>Download:</strong> Save your PDF when finished.</p>
-      <p><small>Tip: High DPI increases file size. Use 150-300 for long documents.</small></p>
+      <h3>Adjust Crop</h3>
+      <div class="cropper-container-box">
+        <img id="imageToCrop">
+      </div>
+      <div class="controls">
+        <button id="confirmCropBtn">Use Crop</button>
+        <button id="cancelCropBtn" style="background-color: #e74c3c;">Cancel</button>
+      </div>
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <div id="helpModal" class="modal">
+    <div class="modal-content">
+      <span class="closeBtn" style="float:right; cursor:pointer; font-size:24px;">&times;</span>
+      <h3>Usage Guide</h3>
+      <p>1. Start Camera.<br>2. Capture Page.<br>3. Adjust the blue box to crop edges.<br>4. Click Use Crop to add to PDF.</p>
+    </div>
+  </div>
+
+  <script>
+    /* --- Logic Variables --- */
+    const video = document.getElementById("preview");
+    const canvas = document.getElementById("captureCanvas");
+    const ctx = canvas.getContext("2d");
+    const statusDiv = document.getElementById("status");
+    const qualitySlider = document.getElementById("qualitySlider");
+    const qualityValue = document.getElementById("qualityValue");
+    const cropModal = document.getElementById("cropModal");
+    const imageToCrop = document.getElementById("imageToCrop");
+    
+    let stream = null;
+    let pdf = null;
+    let pageCount = 0;
+    let cropper = null;
+
+    const PAGE_SIZES = { A4: { w: 210, h: 297 }, A3: { w: 297, h: 420 }, LETTER: { w: 216, h: 279 } };
+
+    /* --- Camera Control --- */
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        video.srcObject = stream;
+      } catch (err) { alert("Camera error: " + err.message); }
+    }
+
+    /* --- Capture & Crop Flow --- */
+    function capturePage() {
+      if (!stream) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Stop camera and show crop modal
+      imageToCrop.src = canvas.toDataURL("image/jpeg");
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      
+      cropModal.style.display = "block";
+      if (cropper) cropper.destroy();
+      cropper = new Cropper(imageToCrop, { viewMode: 1, autoCropArea: 1 });
+    }
+
+    document.getElementById("confirmCropBtn").onclick = () => {
+      const croppedCanvas = cropper.getCroppedCanvas();
+      handleFinalProcessing(croppedCanvas);
+      cropModal.style.display = "none";
+      startCamera(); // Restart for next page
+    };
+
+    document.getElementById("cancelCropBtn").onclick = () => {
+      cropModal.style.display = "none";
+      startCamera();
+    };
+
+    /* --- PDF Processing --- */
+    function handleFinalProcessing(sourceCanvas) {
+      const format = document.getElementById("pageFormat").value;
+      const dpi = parseInt(document.getElementById("dpiSelect").value);
+      const qual = parseFloat(qualitySlider.value);
+
+      const targetW = Math.round((PAGE_SIZES[format].w / 25.4) * dpi);
+      const targetH = Math.round((PAGE_SIZES[format].h / 25.4) * dpi);
+
+      const finalCanvas = document.createElement("canvas");
+      finalCanvas.width = targetW;
+      finalCanvas.height = targetH;
+      finalCanvas.getContext("2d").drawImage(sourceCanvas, 0, 0, targetW, targetH);
+
+      const imgData = finalCanvas.toDataURL("image/jpeg", qual);
+
+      if (!pdf) {
+        pdf = new jspdf.jsPDF({ unit: "pt", format: format.toLowerCase() });
+        pdf.addImage(imgData, "JPEG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+      } else {
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+      }
+
+      pageCount++;
+      statusDiv.innerText = `Page ${pageCount} added.`;
+    }
+
+    /* --- Event Listeners --- */
+    document.getElementById("startCameraBtn").onclick = startCamera;
+    document.getElementById("captureBtn").onclick = capturePage;
+    document.getElementById("downloadPdfBtn").onclick = () => {
+      if (pdf) { pdf.save("Scanner_Export.pdf"); pdf = null; pageCount = 0; statusDiv.innerText = "Downloaded!"; }
+    };
+    qualitySlider.oninput = () => qualityValue.innerText = qualitySlider.value;
+    
+    // Help Modal Logic
+    const helpM = document.getElementById("helpModal");
+    document.getElementById("helpBtn").onclick = () => helpM.style.display = "block";
+    document.querySelector(".closeBtn").onclick = () => helpM.style.display = "none";
+  </script>
 </body>
 </html>
