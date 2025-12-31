@@ -1,137 +1,184 @@
-document.addEventListener("DOMContentLoaded", () => {
+/* ============================================================
+   JUO Legacy Scanner - Steps 1-5 with Help Modal + Progress
+   Author: Joshua Orizu
+   ============================================================ */
 
-  const video = document.getElementById("preview");
-  const canvas = document.getElementById("captureCanvas");
-  const ctx = canvas.getContext("2d");
+/* ------------------------------
+   DOM REFERENCES
+-------------------------------- */
+const video = document.getElementById("preview");
+const canvas = document.getElementById("captureCanvas");
+const ctx = canvas.getContext("2d");
+const statusDiv = document.getElementById("status");
+const pageFormatSelect = document.getElementById("pageFormat");
+const dpiSelect = document.getElementById("dpiSelect");
+const qualitySlider = document.getElementById("qualitySlider");
+const qualityValue = document.getElementById("qualityValue");
 
-  const startCameraBtn = document.getElementById("startCameraBtn");
-  const captureBtn = document.getElementById("captureBtn");
-  const downloadPdfBtn = document.getElementById("downloadPdfBtn");
-  const helpBtn = document.getElementById("helpBtn");
+const helpBtn = document.getElementById("helpBtn");
+const helpModal = document.getElementById("helpModal");
+const closeBtn = document.querySelector(".closeBtn");
 
-  const pageFormatSelect = document.getElementById("pageFormat");
-  const dpiSelect = document.getElementById("dpiSelect");
-  const qualitySlider = document.getElementById("qualitySlider");
-  const qualityValue = document.getElementById("qualityValue");
+const progressBar = document.getElementById("progressBar");
 
-  const progressBar = document.getElementById("progressBar");
-  const statusDiv = document.getElementById("status");
+let stream = null;
 
-  const helpModal = document.getElementById("helpModal");
-  const closeBtn = document.querySelector(".closeBtn");
+/* ------------------------------
+   PAGE SIZE DEFINITIONS
+-------------------------------- */
+const PAGE_SIZES = {
+  A4: { widthMM: 210, heightMM: 297 },
+  A3: { widthMM: 297, heightMM: 420 },
+  LETTER: { widthMM: 216, heightMM: 279 }
+};
 
-  let stream = null;
-  let pdf = null;
-  let pageCount = 0;
-
-  const PAGE_SIZES = {
-    A4: [210, 297],
-    A3: [297, 420],
-    LETTER: [216, 279]
-  };
-
-  function mmToPx(mm, dpi) {
-    return (mm / 25.4) * dpi;
+/* ------------------------------
+   STEP 1: CAMERA CONTROL
+-------------------------------- */
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
+    });
+    video.srcObject = stream;
+  } catch (err) {
+    alert("Media permission denied: " + err.name);
   }
+}
 
-  async function startCamera() {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-        audio: false
-      });
-      video.srcObject = stream;
-    } catch {
-      alert("Camera permission denied");
-    }
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
   }
+}
 
-  function stopCamera() {
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
-  }
+/* ------------------------------
+   STEP 2: CAPTURE & NORMALIZATION
+-------------------------------- */
+function capturePage() {
+  if (!stream) return;
 
-  function capturePage() {
-    if (!stream) return;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  stopCamera();
 
-    stopCamera();
-    processPage();
-  }
+  handleCapturedPage(canvas);
+}
 
-  function processPage() {
-    const format = pageFormatSelect.value;
-    const dpi = parseInt(dpiSelect.value);
-    const quality = parseFloat(qualitySlider.value);
+function mmToPixels(mm, dpi) {
+  return Math.round((mm / 25.4) * dpi);
+}
 
-    const [wMM, hMM] = PAGE_SIZES[format];
-    const wPx = mmToPx(wMM, dpi);
-    const hPx = mmToPx(hMM, dpi);
+function normalizePage(sourceCanvas, pageFormat, dpi) {
+  const size = PAGE_SIZES[pageFormat];
+  const targetWidth = mmToPixels(size.widthMM, dpi);
+  const targetHeight = mmToPixels(size.heightMM, dpi);
 
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = wPx;
-    tempCanvas.height = hPx;
-    tempCanvas.getContext("2d").drawImage(canvas, 0, 0, wPx, hPx);
+  const tempCanvas = document.createElement("canvas");
+  const tempCtx = tempCanvas.getContext("2d");
 
-    const imgData = tempCanvas.toDataURL("image/jpeg", quality);
+  tempCanvas.width = targetWidth;
+  tempCanvas.height = targetHeight;
 
-    if (!pdf) {
-      pdf = new jspdf.jsPDF({
-        orientation: "portrait",
-        unit: "pt",
-        format: format.toLowerCase()
-      });
-    } else {
-      pdf.addPage();
-    }
+  tempCtx.drawImage(sourceCanvas, 0, 0, targetWidth, targetHeight);
 
-    pdf.addImage(
-      imgData,
-      "JPEG",
-      0,
-      0,
-      pdf.internal.pageSize.getWidth(),
-      pdf.internal.pageSize.getHeight()
-    );
+  return tempCanvas;
+}
 
+function exportPage(canvas, format = "image/jpeg", quality = 0.85) {
+  return canvas.toDataURL(format, quality);
+}
+
+function releaseCanvas(cnv) {
+  cnv.width = 0;
+  cnv.height = 0;
+}
+
+/* ------------------------------
+   STEP 3 & 4: PDF ASSEMBLY WITH OPTIONS + PROGRESS
+-------------------------------- */
+let pdf = null;
+let pageCount = 0;
+
+function handleCapturedPage(sourceCanvas) {
+  const selectedFormat = pageFormatSelect.value;
+  const selectedDPI = parseInt(dpiSelect.value);
+  const selectedQuality = parseFloat(qualitySlider.value);
+
+  const normalizedCanvas = normalizePage(sourceCanvas, selectedFormat, selectedDPI);
+  const pageData = exportPage(normalizedCanvas, "image/jpeg", selectedQuality);
+
+  releaseCanvas(sourceCanvas);
+  releaseCanvas(normalizedCanvas);
+
+  if (!pdf) {
+    pdf = new jspdf.jsPDF({ unit: "pt", format: selectedFormat.toLowerCase() });
+    pdf.addImage(pageData, "JPEG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+    pageCount = 1;
+  } else {
+    pdf.addPage();
+    pdf.addImage(pageData, "JPEG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
     pageCount++;
-    updateProgress();
-
-    statusDiv.innerText = `Page ${pageCount} captured`;
   }
 
-  function updateProgress() {
-    const percent = Math.min((pageCount / 100) * 100, 100);
-    progressBar.style.width = percent + "%";
-  }
+  statusDiv.innerText = `Page ${pageCount} captured and added to PDF.`;
+  setTimeout(() => { statusDiv.innerText = ""; }, 3000);
 
-  startCameraBtn.onclick = startCamera;
-  captureBtn.onclick = capturePage;
+  // Update progress bar
+  progressBar.style.width = Math.min(100, pageCount) + "%";
 
-  downloadPdfBtn.onclick = () => {
-    if (!pdf || pageCount === 0) {
-      alert("No pages captured yet");
-      return;
-    }
-    pdf.save("JUO_Legacy_Scanner.pdf");
-    pdf = null;
-    pageCount = 0;
-    progressBar.style.width = "0%";
-  };
+  console.log(`Page ${pageCount} added to PDF.`);
+}
 
-  qualitySlider.oninput = () => {
-    qualityValue.innerText = qualitySlider.value;
-  };
-
-  helpBtn.onclick = () => helpModal.style.display = "block";
-  closeBtn.onclick = () => helpModal.style.display = "none";
-  window.onclick = e => {
-    if (e.target === helpModal) helpModal.style.display = "none";
-  };
-
+/* ------------------------------
+   STEP 5: IMAGE QUALITY SLIDER
+-------------------------------- */
+qualitySlider.addEventListener("input", () => {
+  qualityValue.innerText = qualitySlider.value;
 });
+
+/* ------------------------------
+   DOWNLOAD PDF
+-------------------------------- */
+document.getElementById("downloadPdfBtn").addEventListener("click", () => {
+  if (!pdf) {
+    alert("No pages captured yet!");
+    return;
+  }
+  pdf.save("JUO_Legacy_Scanner.pdf");
+
+  pdf = null;
+  pageCount = 0;
+  progressBar.style.width = "0%";
+});
+
+/* ------------------------------
+   HELP / GUIDE MODAL
+-------------------------------- */
+helpBtn.addEventListener("click", () => {
+  helpModal.style.display = "block";
+});
+
+closeBtn.addEventListener("click", () => {
+  helpModal.style.display = "none";
+});
+
+window.addEventListener("click", (event) => {
+  if (event.target === helpModal) {
+    helpModal.style.display = "none";
+  }
+});
+
+/* ------------------------------
+   EVENT BINDINGS
+-------------------------------- */
+document.getElementById("startCameraBtn").addEventListener("click", startCamera);
+document.getElementById("captureBtn").addEventListener("click", capturePage);
