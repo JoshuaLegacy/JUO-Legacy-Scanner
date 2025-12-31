@@ -1,106 +1,137 @@
-const video = document.getElementById("preview");
-const canvas = document.getElementById("captureCanvas");
-const ctx = canvas.getContext("2d");
-const statusBox = document.getElementById("status");
+document.addEventListener("DOMContentLoaded", () => {
 
-let stream = null;
-let pages = [];
+  const video = document.getElementById("preview");
+  const canvas = document.getElementById("captureCanvas");
+  const ctx = canvas.getContext("2d");
 
-const PAGE_MM = { width: 210, height: 297 };
-const DPI = 300;
+  const startCameraBtn = document.getElementById("startCameraBtn");
+  const captureBtn = document.getElementById("captureBtn");
+  const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+  const helpBtn = document.getElementById("helpBtn");
 
-/* ---------------- CAMERA ---------------- */
-async function startCamera() {
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
-      audio: false
-    });
-    video.srcObject = stream;
-    statusBox.textContent = "Camera ready";
-  } catch {
-    statusBox.textContent = "Camera permission denied";
+  const pageFormatSelect = document.getElementById("pageFormat");
+  const dpiSelect = document.getElementById("dpiSelect");
+  const qualitySlider = document.getElementById("qualitySlider");
+  const qualityValue = document.getElementById("qualityValue");
+
+  const progressBar = document.getElementById("progressBar");
+  const statusDiv = document.getElementById("status");
+
+  const helpModal = document.getElementById("helpModal");
+  const closeBtn = document.querySelector(".closeBtn");
+
+  let stream = null;
+  let pdf = null;
+  let pageCount = 0;
+
+  const PAGE_SIZES = {
+    A4: [210, 297],
+    A3: [297, 420],
+    LETTER: [216, 279]
+  };
+
+  function mmToPx(mm, dpi) {
+    return (mm / 25.4) * dpi;
   }
-}
 
-function stopCamera() {
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
-    stream = null;
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false
+      });
+      video.srcObject = stream;
+    } catch {
+      alert("Camera permission denied");
+    }
   }
-}
 
-/* ---------------- CAPTURE ---------------- */
-function capturePage() {
-  if (!stream) return;
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+  }
 
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  ctx.drawImage(video, 0, 0);
+  function capturePage() {
+    if (!stream) return;
 
-  const normalized = normalize(canvas);
-  pages.push(normalized);
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
 
-  stopCamera();
-  release(canvas);
+    stopCamera();
+    processPage();
+  }
 
-  statusBox.textContent = `Page ${pages.length} captured`;
-}
+  function processPage() {
+    const format = pageFormatSelect.value;
+    const dpi = parseInt(dpiSelect.value);
+    const quality = parseFloat(qualitySlider.value);
 
-/* ---------------- NORMALIZE ---------------- */
-function mmToPx(mm, dpi) {
-  return Math.round((mm / 25.4) * dpi);
-}
+    const [wMM, hMM] = PAGE_SIZES[format];
+    const wPx = mmToPx(wMM, dpi);
+    const hPx = mmToPx(hMM, dpi);
 
-function normalize(source) {
-  const w = mmToPx(PAGE_MM.width, DPI);
-  const h = mmToPx(PAGE_MM.height, DPI);
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = wPx;
+    tempCanvas.height = hPx;
+    tempCanvas.getContext("2d").drawImage(canvas, 0, 0, wPx, hPx);
 
-  const temp = document.createElement("canvas");
-  temp.width = w;
-  temp.height = h;
+    const imgData = tempCanvas.toDataURL("image/jpeg", quality);
 
-  temp.getContext("2d").drawImage(source, 0, 0, w, h);
-  return temp;
-}
+    if (!pdf) {
+      pdf = new jspdf.jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: format.toLowerCase()
+      });
+    } else {
+      pdf.addPage();
+    }
 
-function release(cnv) {
-  cnv.width = 0;
-  cnv.height = 0;
-}
+    pdf.addImage(
+      imgData,
+      "JPEG",
+      0,
+      0,
+      pdf.internal.pageSize.getWidth(),
+      pdf.internal.pageSize.getHeight()
+    );
 
-/* ---------------- EXPORT ---------------- */
-function exportPDF() {
-  if (pages.length === 0) return;
+    pageCount++;
+    updateProgress();
 
-  const pdf = new window.jspdf.jsPDF("p", "mm", "a4");
+    statusDiv.innerText = `Page ${pageCount} captured`;
+  }
 
-  pages.forEach((p, i) => {
-    if (i > 0) pdf.addPage();
-    pdf.addImage(p.toDataURL("image/jpeg", 0.9), "JPEG", 0, 0, 210, 297);
-    release(p);
-  });
+  function updateProgress() {
+    const percent = Math.min((pageCount / 100) * 100, 100);
+    progressBar.style.width = percent + "%";
+  }
 
-  pages = [];
-  pdf.save("JUO_Legacy_Scan.pdf");
-  statusBox.textContent = "PDF exported";
-}
+  startCameraBtn.onclick = startCamera;
+  captureBtn.onclick = capturePage;
 
-function exportPNG() {
-  if (pages.length === 0) return;
+  downloadPdfBtn.onclick = () => {
+    if (!pdf || pageCount === 0) {
+      alert("No pages captured yet");
+      return;
+    }
+    pdf.save("JUO_Legacy_Scanner.pdf");
+    pdf = null;
+    pageCount = 0;
+    progressBar.style.width = "0%";
+  };
 
-  const p = pages.pop();
-  const a = document.createElement("a");
-  a.href = p.toDataURL("image/png");
-  a.download = "JUO_Legacy_Scan.png";
-  a.click();
+  qualitySlider.oninput = () => {
+    qualityValue.innerText = qualitySlider.value;
+  };
 
-  release(p);
-  statusBox.textContent = "PNG exported";
-}
+  helpBtn.onclick = () => helpModal.style.display = "block";
+  closeBtn.onclick = () => helpModal.style.display = "none";
+  window.onclick = e => {
+    if (e.target === helpModal) helpModal.style.display = "none";
+  };
 
-/* ---------------- EVENTS ---------------- */
-document.getElementById("startCameraBtn").onclick = startCamera;
-document.getElementById("captureBtn").onclick = capturePage;
-document.getElementById("exportPdfBtn").onclick = exportPDF;
-document.getElementById("exportPngBtn").onclick = exportPNG;
+});
