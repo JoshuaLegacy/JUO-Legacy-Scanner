@@ -1,84 +1,95 @@
-/* ============================================================
-   JUO Legacy Scanner – Mobile Stable Layout
-   ============================================================ */
-
-* {
-  box-sizing: border-box;
-}
-
 body {
-  margin: 0;
   font-family: Arial, sans-serif;
-  background: #000;
-  color: #fff;
-  overflow: hidden;
-}
-
-/* ---------------- HEADER ---------------- */
-.app-header {
-  height: 56px;
-  background: #1e7e34;
-  text-align: center;
-  padding: 6px;
-}
-
-.app-header h2 {
   margin: 0;
-  font-size: 16px;
+  padding: 12px;
+  background: #f9f9f9;
+  text-align: center;
 }
 
-.app-header span {
-  font-size: 11px;
+h2 {
+  margin-bottom: 10px;
 }
 
-/* ---------------- CAMERA ---------------- */
-.camera-wrapper {
-  height: calc(100vh - 56px - 72px);
-  background: #000;
+.controls,
+.options {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  align-items: center;
-}
-
-video {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-/* ---------------- CONTROLS ---------------- */
-.control-bar {
-  height: 72px;
-  background: #ffffff;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 button {
   padding: 10px 14px;
-  font-size: 13px;
+  font-size: 14px;
   border: none;
   border-radius: 6px;
-  background: #28a745;
+  background: #4CAF50;
   color: #fff;
+  cursor: pointer;
 }
 
-button:active {
-  background: #1e7e34;
+button:hover {
+  background: #45a049;
 }
 
-/* ---------------- STATUS ---------------- */
-#status {
-  position: fixed;
-  bottom: 80px;
+.options label {
+  font-size: 13px;
+}
+
+video {
   width: 100%;
-  text-align: center;
-  font-size: 12px;
-  color: #00ff7f;
+  max-width: 360px;
+  margin: 10px auto;
+  border-radius: 6px;
+  border: 1px solid #ccc;
 }
 
-/* ---------------- CANVAS ---------------- */
 canvas {
   display: none;
+}
+
+#progressContainer {
+  width: 90%;
+  max-width: 360px;
+  height: 14px;
+  background: #ddd;
+  border-radius: 7px;
+  margin: 10px auto;
+}
+
+#progressBar {
+  height: 100%;
+  width: 0%;
+  background: #4CAF50;
+  border-radius: 7px;
+}
+
+#status {
+  font-size: 14px;
+  font-weight: bold;
+  margin-top: 8px;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+  background: #fff;
+  width: 90%;
+  max-width: 420px;
+  margin: 15% auto;
+  padding: 16px;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.closeBtn {
+  float: right;
+  font-size: 22px;
+  cursor: pointer;
 }
