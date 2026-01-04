@@ -15,13 +15,13 @@
   "icons": [
     {
       "src": "icon-192.png",
-      "sizes": "192x192",
+      "sizes": "283x260",
       "type": "image/png",
       "purpose": "any"
     },
     {
       "src": "icon-512.png",
-      "sizes": "512x512",
+      "sizes": "512x483",
       "type": "image/png",
       "purpose": "any"
     }
@@ -35,7 +35,7 @@
       "icons": [
         {
           "src": "icon-192.png",
-          "sizes": "192x192"
+          "sizes": "283x260"
         }
       ]
     },
@@ -47,7 +47,7 @@
       "icons": [
         {
           "src": "icon-192.png",
-          "sizes": "192x192"
+          "sizes": "283x260"
         }
       ]
     }
@@ -55,32 +55,32 @@
   "screenshots": [
     {
       "src": "screenshot1.jpg",
-      "sizes": "1080x1920",
+      "sizes": "486x1080",
       "type": "image/jpeg"
     },
     {
       "src": "screenshot2.jpg",
-      "sizes": "1080x1920",
+      "sizes": "486x1080",
       "type": "image/jpeg"
     },
     {
       "src": "screenshot3.jpg",
-      "sizes": "1080x1920",
+      "sizes": "486x1080",
       "type": "image/jpeg"
     },
     {
       "src": "screenshot4.jpg",
-      "sizes": "1080x1920",
+      "sizes": "486x1080",
       "type": "image/jpeg"
     },
     {
       "src": "screenshot5.jpg",
-      "sizes": "1080x1920",
+      "sizes": "486x1080",
       "type": "image/jpeg"
     },
     {
       "src": "screenshot6.jpg",
-      "sizes": "1080x1920",
+      "sizes": "486x1080",
       "type": "image/jpeg"
     }
   ]
