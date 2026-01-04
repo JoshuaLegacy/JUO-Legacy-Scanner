@@ -54,32 +54,32 @@
   ],
   "screenshots": [
     {
-      "src": "Screenshot 1.jpg",
+      "src": "Screenshot1.jpg",
       "sizes": "486x1080",
       "type": "image/jpeg"
     },
     {
-      "src": "Screenshot 2.jpg",
+      "src": "Screenshot2.jpg",
       "sizes": "486x1080",
       "type": "image/jpeg"
     },
     {
-      "src": "Screenshot 3.jpg",
+      "src": "Screenshot3.jpg",
       "sizes": "486x1080",
       "type": "image/jpeg"
     },
     {
-      "src": "Screenshot 4.jpg",
+      "src": "Screenshot4.jpg",
       "sizes": "486x1080",
       "type": "image/jpeg"
     },
     {
-      "src": "Screenshot 5.jpg",
+      "src": "Screenshot5.jpg",
       "sizes": "486x1080",
       "type": "image/jpeg"
     },
     {
-      "src": "Screenshot 6.jpg",
+      "src": "Screenshot6.jpg",
       "sizes": "486x1080",
       "type": "image/jpeg"
     }
