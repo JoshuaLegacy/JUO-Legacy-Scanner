@@ -55,33 +55,39 @@
   "screenshots": [
     {
       "src": "Screenshot1.jpg",
-      "sizes": "486x1080",
-      "type": "image/jpg"
+      "sizes": "1920x1080",
+      "type": "image/jpeg",
+      "form_factor": "wide"
     },
     {
       "src": "Screenshot2.jpg",
-      "sizes": "486x1080",
-      "type": "image/jpg"
+      "sizes": "1920x1080",
+      "type": "image/jpeg",
+      "form_factor": "wide"
     },
     {
       "src": "Screenshot3.jpg",
-      "sizes": "486x1080",
-      "type": "image/jpg"
+      "sizes": "1920x1080",
+      "type": "image/jpeg",
+      "form_factor": "wide"
     },
     {
       "src": "Screenshot4.jpg",
-      "sizes": "486x1080",
-      "type": "image/jpg"
+      "sizes": "1920x1080",
+      "type": "image/jpeg",
+      "form_factor": "wide"
     },
     {
       "src": "Screenshot5.jpg",
-      "sizes": "486x1080",
-      "type": "image/jpg"
+      "sizes": "1920x1080",
+      "type": "image/jpeg",
+      "form_factor": "wide"
     },
     {
       "src": "Screenshot6.jpg",
-      "sizes": "486x1080",
-      "type": "image/jpg"
+      "sizes": "1920x1080",
+      "type": "image/jpeg",
+      "form_factor": "wide"
     }
   ]
 }
