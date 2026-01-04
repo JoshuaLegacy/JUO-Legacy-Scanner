@@ -22,10 +22,7 @@
       flex-direction: column;
       align-items: center;
     }
-
     h2 { margin: 10px 0; font-size: 1.2rem; }
-
-    /* Controls Grid */
     .controls {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -34,7 +31,6 @@
       max-width: 420px;
       margin-bottom: 10px;
     }
-
     button {
       background-color: #4CAF50;
       color: white;
@@ -44,12 +40,10 @@
       font-weight: bold;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      cursor: pointer;
     }
-
     #helpBtn { background-color: #5d6d7e; }
     #downloadPdfBtn { background-color: #2196F3; }
-
-    /* Options Section */
     .options {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -63,12 +57,9 @@
       font-size: 13px;
       box-sizing: border-box;
     }
-
     .option-group { display: flex; flex-direction: column; align-items: flex-start; }
     .slider-group { grid-column: span 2; width: 100%; }
     .options select, .options input { width: 100%; padding: 6px; margin-top: 4px; }
-
-    /* Preview Window */
     video {
       width: 100%;
       max-width: 420px;
@@ -78,8 +69,6 @@
       border-radius: 8px;
       object-fit: cover;
     }
-
-    /* Modal Styling */
     .modal {
       display: none;
       position: fixed;
@@ -87,8 +76,8 @@
       left: 0; top: 0; width: 100%; height: 100%;
       background-color: rgba(0,0,0,0.8);
       padding-top: 20px;
+      overflow-y: auto;
     }
-
     .modal-content {
       background-color: #fff;
       margin: auto;
@@ -97,19 +86,16 @@
       max-width: 450px;
       border-radius: 12px;
       position: relative;
+      text-align: left;
     }
-
-    /* Cropper Container */
     .cropper-container-box {
       width: 100%;
-      height: 60vh;
+      height: 50vh;
       background-color: #eee;
       margin-bottom: 10px;
       overflow: hidden;
     }
-
-    img { max-width: 100%; }
-
+    img { max-width: 100%; display: block; }
     #status { margin-top: 8px; font-size: 13px; font-weight: bold; color: #27ae60; }
   </style>
 </head>
@@ -152,7 +138,7 @@
 
   <div id="cropModal" class="modal">
     <div class="modal-content">
-      <h3>Adjust Crop</h3>
+      <h3 style="text-align:center">Adjust Crop</h3>
       <div class="cropper-container-box">
         <img id="imageToCrop">
       </div>
@@ -167,19 +153,16 @@
     <div class="modal-content">
       <span class="closeBtn" style="float:right; cursor:pointer; font-size:24px;">&times;</span>
       <h3>Usage Guide</h3>
-        <ol>
-    <li><strong>Document Format:</strong> Works best for <strong>A3, A4, or Letter</strong> documents in <strong>portrait or landscape</strong>. You can also scan books. For best results, hold your phone in <strong>portrait orientation</strong>.</li>
-    <li><strong>Position the Document:</strong> Place the document flat on a surface. Align your camera so the LEFT and RIGHT edges of the document fit perfectly within the preview.</li>
-    <li><strong>Capture the Page:</strong> Click <strong>Capture Page</strong>. Crop the image as desired and click <strong>Use Crop</strong>.</li>
-    <li><strong>Scan Multi-Page Documents:</strong> If your document has more than one page, click <strong>Capture Page</strong> for each additional page. Repeat until all pages are scanned.</li>
-    <li><strong>Download Your PDF:</strong> Click <strong>Download PDF</strong> to save your scanned document.</li>
-    <li><strong>View Your Scanned Document:</strong> Open the downloaded PDF from your device’s file manager to view your scanned pages.</li>
-  </ol>
+      <ol>
+        <li><strong>Start:</strong> Open camera and position document.</li>
+        <li><strong>Capture:</strong> Snap the photo and adjust edges.</li>
+        <li><strong>Multi-page:</strong> Repeat for each page.</li>
+        <li><strong>Save:</strong> Click Download PDF when finished.</li>
+      </ol>
     </div>
   </div>
 
   <script>
-    /* --- Logic Variables --- */
     const video = document.getElementById("preview");
     const canvas = document.getElementById("captureCanvas");
     const ctx = canvas.getContext("2d");
@@ -196,7 +179,6 @@
 
     const PAGE_SIZES = { A4: { w: 210, h: 297 }, A3: { w: 297, h: 420 }, LETTER: { w: 216, h: 279 } };
 
-    /* --- Camera Control --- */
     async function startCamera() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -207,27 +189,35 @@
       } catch (err) { alert("Camera error: " + err.message); }
     }
 
-    /* --- Capture & Crop Flow --- */
     function capturePage() {
-      if (!stream) return;
+      if (!stream) { alert("Please start the camera first"); return; }
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      // Stop camera and show crop modal
-      imageToCrop.src = canvas.toDataURL("image/jpeg");
-      if (stream) stream.getTracks().forEach(t => t.stop());
+      const dataUrl = canvas.toDataURL("image/jpeg");
+      imageToCrop.src = dataUrl;
       
+      if (stream) stream.getTracks().forEach(t => t.stop());
       cropModal.style.display = "block";
-      if (cropper) cropper.destroy();
-      cropper = new Cropper(imageToCrop, { viewMode: 1, autoCropArea: 1 });
+
+      // IMPORTANT: Wait for image to load before initializing Cropper
+      imageToCrop.onload = () => {
+        if (cropper) cropper.destroy();
+        cropper = new Cropper(imageToCrop, { 
+          viewMode: 1, 
+          autoCropArea: 1,
+          responsive: true,
+          restore: false
+        });
+      };
     }
 
     document.getElementById("confirmCropBtn").onclick = () => {
       const croppedCanvas = cropper.getCroppedCanvas();
       handleFinalProcessing(croppedCanvas);
       cropModal.style.display = "none";
-      startCamera(); // Restart for next page
+      startCamera(); 
     };
 
     document.getElementById("cancelCropBtn").onclick = () => {
@@ -235,59 +225,56 @@
       startCamera();
     };
 
-    /* --- PDF Processing --- */
     function handleFinalProcessing(sourceCanvas) {
       const format = document.getElementById("pageFormat").value;
       const dpi = parseInt(document.getElementById("dpiSelect").value);
       const qual = parseFloat(qualitySlider.value);
 
-      const targetW = Math.round((PAGE_SIZES[format].w / 25.4) * dpi);
-      const targetH = Math.round((PAGE_SIZES[format].h / 25.4) * dpi);
+      // pt = mm * (72 / 25.4)
+      const targetW_pt = PAGE_SIZES[format].w * (72 / 25.4);
+      const targetH_pt = PAGE_SIZES[format].h * (72 / 25.4);
 
-      const finalCanvas = document.createElement("canvas");
-      finalCanvas.width = targetW;
-      finalCanvas.height = targetH;
-      finalCanvas.getContext("2d").drawImage(sourceCanvas, 0, 0, targetW, targetH);
-
-      const imgData = finalCanvas.toDataURL("image/jpeg", qual);
+      const imgData = sourceCanvas.toDataURL("image/jpeg", qual);
 
       if (!pdf) {
         pdf = new jspdf.jsPDF({ unit: "pt", format: format.toLowerCase() });
-        pdf.addImage(imgData, "JPEG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
       } else {
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+        pdf.addPage(format.toLowerCase());
       }
 
+      pdf.addImage(imgData, "JPEG", 0, 0, targetW_pt, targetH_pt);
       pageCount++;
       statusDiv.innerText = `Page ${pageCount} added.`;
     }
 
-    /* --- Event Listeners --- */
     document.getElementById("startCameraBtn").onclick = startCamera;
     document.getElementById("captureBtn").onclick = capturePage;
     document.getElementById("downloadPdfBtn").onclick = () => {
-      if (pdf) { pdf.save("Scanner_Export.pdf"); pdf = null; pageCount = 0; statusDiv.innerText = "Downloaded!"; }
+      if (pdf) { 
+        pdf.save("Scanner_Export.pdf"); 
+        pdf = null; 
+        pageCount = 0; 
+        statusDiv.innerText = "Downloaded!"; 
+      } else {
+        alert("Capture at least one page first.");
+      }
     };
     qualitySlider.oninput = () => qualityValue.innerText = qualitySlider.value;
     
-    // Help Modal Logic
     const helpM = document.getElementById("helpModal");
     document.getElementById("helpBtn").onclick = () => helpM.style.display = "block";
     document.querySelector(".closeBtn").onclick = () => helpM.style.display = "none";
+    window.onclick = (event) => { if (event.target == helpM) helpM.style.display = "none"; };
+  </script>
 
   <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js')
-      .then(reg => console.log('Service Worker registered.', reg))
-      .catch(err => console.log('Service Worker registration failed:', err));
-    });
-  }
-</script>
-
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+        .then(reg => console.log('Service Worker registered.'))
+        .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
 </body>
 </html>
-
-
-
