@@ -1,6 +1,6 @@
 /* JUO Legacy Scanner – Service Worker */
 
-const CACHE_NAME = "juo-legacy-scanner-v1";
+const CACHE_NAME = "juo-legacy-scanner-v2";
 const OFFLINE_URL = "offline.html";
 
 /* Files required for app to work offline */
