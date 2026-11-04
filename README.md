@@ -10,13 +10,15 @@ A static, browser-based document scanner by Joshua Orizu. Camera images, recogni
 4. Choose Original, Color Document, Grayscale or Black & White before adding a page. Document modes reduce uneven illumination using local contrast normalization; optional text deskew corrects small angles up to 5°.
 5. Review page thumbnails. Reorder, delete or rotate pages. Rotating an existing page clears its OCR because the word coordinates would otherwise be wrong.
 6. Open **Text / identify**, choose a language, recognize text, and review the result. Optional orientation detection compares four rotations and corrects the image when recognition improves. It takes longer than recognizing upright text.
-7. Review the suggested document category and extracted date, total or invoice number. These are pattern-based suggestions, not verified facts or identity verification. Supported browsers can also read QR/barcodes; scanned links are never opened automatically.
+7. Review the suggested document category and fields. The app combines category cues and extracts dates, totals, invoice numbers, contact details, tax, due dates, ID labels or statement balances where present. These are heuristic suggestions, not verified facts or identity verification. QR/barcodes use native detection where available and a bundled ZXing fallback otherwise; scanned links are never opened automatically.
 8. Download the PDF and/or UTF-8 text. Downloads keep the draft. **Clear document** explicitly removes the saved pages and text from this browser.
 
 ## Quality and resource limits
 
 - The camera requests up to 3840 × 2160 and continuous focus where supported. The browser/device decides the actual resolution and focus capabilities.
-- Edge detection targets a large, light page against a darker background. Textured, low-contrast, dark or partially hidden documents may require manual corners. It does not detect individual book pages or flatten curved pages.
+- Edge detection checks smoothed light and dark regions and falls back to page boundary lines. Dark paper, textured backgrounds and modest contrast are supported, but ambiguous or partially hidden pages may require manual corners. Inspect every detected corner.
+- For a curved book page, select one page, open **Flatten a curved book page**, enable guided correction, and adjust the top/bottom edge curves using the preview. This corrects smooth vertical bowing; it is not automatic 3D reconstruction, cannot restore hidden text, and does not correct every form of spine distortion. Closing the controls keeps the enabled correction; uncheck it to disable.
+- Preview quality checks operate on the detected page when available. Local exposure comparisons reduce false glare warnings on white paper, while contrast/detail and uneven lighting remain heuristic checks.
 - Quality warnings estimate detail and exposure; they cannot guarantee readability or distinguish every white page from glare. Check the saved preview.
 - Paper formats: A4, A3 and Letter. Landscape images use landscape pages. Images are centered with their proportions preserved; unused paper stays blank.
 - DPI sets the output pixel ceiling relative to the selected paper. Images are never enlarged to pretend to have more detail. Working/output images are limited to 4 megapixels, so high DPI may be capped below the selected value on large paper.
@@ -24,15 +26,19 @@ A static, browser-based document scanner by Joshua Orizu. Camera images, recogni
 
 ## OCR, identification and search
 
-Tesseract.js 5.1.1 downloads on first OCR use. English, French, Spanish, German and Portuguese language choices are available. The engine and selected language require an internet connection on first use. OCR is performed locally; language and engine requests go to jsDelivr and Project Naptha. Browser caches may retain downloaded engines/languages, but offline OCR is not guaranteed. Initial downloads or four-way orientation checks can take time on phones.
+Tesseract.js 5.1.1 is bundled locally. Fourteen language packs are available: English, French, Spanish, German, Portuguese, Arabic, Hindi, simplified Chinese, Russian, Ukrainian, Japanese, Korean, Yoruba and Italian. Language recognition does not imply multilingual category/field extraction: classification cues and most field labels currently target English documents.
 
-PDFs include an invisible, positioned text layer for unedited OCR words supported by built-in Helvetica (ASCII and Latin-1). Other characters remain visible in the scanned image and are preserved in the UTF-8 text download. Manually editing recognized text discards its word boxes to avoid exporting incorrect text locations; corrected text is available in the text download. This is not a PDF/A export or a guarantee of OCR accuracy.
+Choose a language and use **Download language for offline use** while connected. The app downloads the shared LSTM core and selected fast language model, checks exact byte lengths and SHA-256 hashes, and saves them separately from the application shell. The status reports readiness only when both are present. The English pack plus shared core is about 7.7 MB; other language sizes vary. Recognition can prepare a missing pack automatically while online. Downloads and recognition can be cancelled. Completed valid shared downloads are retained for retry; failed or corrupted downloads are not accepted as ready. A downloaded language can be removed without clearing scanned documents.
 
-Barcode detection uses the browser's native `BarcodeDetector` when available. The button is disabled in browsers that do not implement it. Recognition does not validate an ID or authenticate a document.
+Models are pinned to a `tessdata_fast` Git commit; engine assets are pinned to Tesseract core 5.1.1. Remote downloads go to jsDelivr and raw.githubusercontent.com, and carry no scanned images. Workers read prepared assets through same-origin service-worker routes, so fresh recognition works after an offline reload. Browser data eviction or clearing site storage can remove packs: check readiness again before relying on offline use. Initial setup requires a browser with service workers and CacheStorage over HTTPS or localhost.
+
+PDFs use Unicode `/ActualText` marked content in PDF 1.7. Unedited OCR words retain their coordinates. Reviewed text, including manual corrections and added lines, remains searchable with approximate line positions when the original word boxes are no longer valid. The text layer never changes the visible scan. Unicode extraction has been tested with Poppler across Latin, Greek, Cyrillic, Chinese, Hindi and emoji; PDF-reader search/selection behavior can vary, especially for bidirectional text. UTF-8 text export remains available. This is not PDF/A or a guarantee of OCR accuracy.
+
+Barcode recognition uses the native `BarcodeDetector` first, then a bundled ZXing 0.21.3 decoder for QR and common 1D/2D formats. The fallback checks four rotations and works offline after the shell is cached. The current UI returns one decoded result per page; it does not promise to enumerate every barcode. Recognition does not validate an ID or authenticate a document.
 
 ## Offline use and privacy
 
-A service worker caches the complete application shell and the bundled jsPDF 4.2.1 engine after the first successful online visit. Camera scanning, imports and PDF export then work offline, subject to browser camera/storage restrictions. Cache installation is atomic and uses the actual root icon paths. Updates activate after older tabs close; the worker removes only this app's previous named caches.
+A service worker caches the complete application shell and the bundled jsPDF 4.2.1 engine after the first successful online visit. Camera scanning, imports, PDF export and barcode fallback then work offline, subject to browser camera/storage restrictions. OCR also works offline once its selected language pack is ready. Cache installation is atomic and uses the actual root icon paths. Updates activate after older tabs close; the worker removes only this app's previous named caches.
 
 The current draft is saved to IndexedDB after changes, and recovered when the app opens. If storage is unavailable/full, the interface warns you to export. Private browsing, clearing site data, or browser storage eviction can remove drafts. Do not rely on local recovery as your only copy. On a shared device, export and clear the document when finished. No analytics or document upload endpoint is used.
 
@@ -49,17 +55,21 @@ npm test
 
 Core tests cover page detection, invalid geometry, perspective mapping, aspect ratios, DPI/memory caps, enhancement, exposure/detail warnings, field extraction and deskew.
 
-Browser integration checks require Python 3, Playwright, Pillow, Chromium and a DejaVu Sans font:
+Browser integration checks require Python 3, Playwright, Pillow, Chromium, Poppler (`pdftotext`) and a DejaVu Sans font:
 
 ```sh
 pip install -r tests/requirements.txt
 python -m playwright install chromium
 # Keep the local HTTP server running in another terminal.
 python tests/browser_checks.py
+python tests/followup_checks.py
 # Optional: real OCR/orientation integration; downloads engines and language data.
 SCANNER_TEST_OCR=1 python tests/browser_checks.py
+# Verify a fresh worker can recognize text after an offline reload:
+python tests/fetch_ocr_fixtures.py
+SCANNER_TEST_OFFLINE_OCR=1 SCANNER_ASSET_FIXTURES=/tmp/scanner-ocr-fixtures python tests/followup_checks.py
 ```
 
-Set `CHROMIUM_PATH` to use a system Chromium. The browser checks use generated document fixtures and a simulated camera; they cover capture/cancel, import/detection, page processing, reviewed text export, draft recovery, real PDF generation, offline reload/export, rotation invalidation and clear. Real phone cameras, focus, performance and iOS/Android permission behavior still require device testing.
+Set `CHROMIUM_PATH` to use a system Chromium and `SCANNER_URL` to test another local server URL. The optional asset-fixture test downloads and verifies real pinned engines/models before supplying them to browser download requests; the worker itself then runs with networking disabled. The browser checks use generated document fixtures and a simulated camera; they cover capture/cancel, import/detection, page processing, reviewed text export, draft recovery, real PDF generation, offline reload/export, rotation invalidation and clear. Real phone cameras, focus, performance and iOS/Android permission behavior still require device testing.
 
-The `scan-core.js` module contains pure algorithms; `script.js` owns the app state and browser interactions. jsPDF is vendored with its MIT license in `vendor/`. Tests and syntax checks run through GitHub Actions.
+The `scan-core.js` module contains pure algorithms; `script.js` owns app state and browser interactions. `offline-ocr.js` manages verified packs, `ocr-assets.json` pins their origins and hashes, and `pdf-text.js` writes Unicode replacement text. Third-party jsPDF, Tesseract, ZXing and model licenses are retained in `vendor/`. GitHub Actions runs syntax, algorithm and browser checks, including real offline OCR with the prepared English pack.

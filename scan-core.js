@@ -43,20 +43,30 @@
   function quality(image) {
     const g = gray(image),
       w = image.width,
-      h = image.height;
+      h = image.height,
+      hist = new Uint32Array(256);
     let sum = 0,
-      white = 0,
-      dark = 0,
       lap = 0,
       lap2 = 0,
       n = 0;
-    for (let i = 0; i < g.length; i++) {
-      sum += g[i];
-      if (g[i] > 250) white++;
-      if (g[i] < 35) dark++;
+    for (const value of g) {
+      hist[Math.round(value)]++;
+      sum += value;
     }
-    for (let y = 1; y < h - 1; y++)
-      for (let x = 1; x < w - 1; x++) {
+    function percentile(f) {
+      let count = 0;
+      for (let i = 0; i < 256; i++) {
+        count += hist[i];
+        if (count >= g.length * f) return i;
+      }
+      return 255;
+    }
+    const p10 = percentile(0.1),
+      p50 = percentile(0.5),
+      p90 = percentile(0.9),
+      contrast = percentile(0.98) - percentile(0.02);
+    for (let y = 2; y < h - 2; y++)
+      for (let x = 2; x < w - 2; x++) {
         const i = y * w + x,
           v = 4 * g[i] - g[i - 1] - g[i + 1] - g[i - w] - g[i + w];
         lap += v;
@@ -65,28 +75,95 @@
       }
     const sharpness = n ? Math.max(0, lap2 / n - (lap / n) ** 2) : 0,
       brightness = sum / g.length;
+    // Compare local exposure with the rest of the page; ordinary white paper is not glare.
+    const tiles = [];
+    for (let ty = 0; ty < 4; ty++)
+      for (let tx = 0; tx < 4; tx++) {
+        let total = 0,
+          saturated = 0,
+          count = 0;
+        for (
+          let y = Math.floor((ty * h) / 4);
+          y < Math.floor(((ty + 1) * h) / 4);
+          y++
+        )
+          for (
+            let x = Math.floor((tx * w) / 4);
+            x < Math.floor(((tx + 1) * w) / 4);
+            x++
+          ) {
+            const v = g[y * w + x];
+            total += v;
+            if (v > 252) saturated++;
+            count++;
+          }
+        tiles.push({
+          mean: total / Math.max(1, count),
+          saturated: saturated / Math.max(1, count),
+        });
+      }
+    const means = tiles.map((t) => t.mean).sort((a, b) => a - b),
+      shadowRange = means[12] - means[3];
+    const glare =
+      tiles.some((t) => t.saturated > 0.55 && t.mean > p50 + 30) && p50 < 225;
+    const lowDetail = sharpness < Math.max(45, contrast * contrast * 0.003);
     const warnings = [];
-    if (brightness < 65) warnings.push("Too dark: add diffuse light.");
-    if (white / g.length > 0.35)
-      warnings.push("Large bright area: check for glare or missing text.");
-    if (sharpness < 45)
-      warnings.push("Low detail: check focus and hold steady.");
-    if (dark / g.length > 0.65)
-      warnings.push("Heavy shadows: move to even lighting.");
+    if (brightness < 60) warnings.push("Too dark: add diffuse light.");
+    if (glare)
+      warnings.push("Possible glare: move the light or tilt the camera.");
+    if (lowDetail) warnings.push("Low detail: check focus and hold steady.");
+    if (shadowRange > 65)
+      warnings.push("Uneven lighting: reduce shadows across the page.");
+    if (contrast < 18)
+      warnings.push("Low contrast: check faint text and page edges.");
     return {
       brightness,
       sharpness,
+      contrast,
+      glare,
+      shadowRange,
       warnings,
-      good: brightness >= 65 && brightness <= 245 && sharpness >= 45,
+      good:
+        brightness >= 60 &&
+        !glare &&
+        !lowDetail &&
+        contrast >= 18 &&
+        shadowRange <= 65,
     };
+  }
+  function documentQuality(image, corners) {
+    return quality(corners ? warp(image, corners, 90000) : image);
+  }
+  function smoothGray(image) {
+    const src = gray(image),
+      out = new Float32Array(src.length),
+      w = image.width,
+      h = image.height;
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        let sum = 0,
+          n = 0;
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx,
+              yy = y + dy;
+            if (xx >= 0 && xx < w && yy >= 0 && yy < h) {
+              sum += src[yy * w + xx];
+              n++;
+            }
+          }
+        out[y * w + x] = sum / n;
+      }
+    return out;
   }
   // Find the largest connected light-paper region. Reject low-contrast or implausible candidates.
   // This deliberately conservative detector keeps manual corners available for difficult backgrounds.
-  function detectDocument(image) {
+  function detectRegion(image, inverted = false) {
     const w = image.width,
       h = image.height,
-      g = gray(image),
+      g = smoothGray(image),
       hist = new Uint32Array(256);
+    if (inverted) for (let i = 0; i < g.length; i++) g[i] = 255 - g[i];
     for (const v of g) hist[Math.round(v)]++;
     let total = 0;
     for (let i = 0; i < 256; i++) total += i * hist[i];
@@ -106,7 +183,7 @@
         threshold = t;
       }
     }
-    if (best / g.length ** 2 < 150) return null;
+    if (best / g.length ** 2 < 9) return null;
     const seen = new Uint8Array(g.length),
       queue = new Int32Array(g.length);
     let candidate = null;
@@ -117,10 +194,12 @@
       queue[0] = start;
       seen[start] = 1;
       const points = [];
+      let touches = 0;
       while (head < tail) {
         const i = queue[head++],
           x = i % w,
           y = Math.floor(i / w);
+        if (x === 0 || y === 0 || x === w - 1 || y === h - 1) touches++;
         if (
           x === 0 ||
           y === 0 ||
@@ -143,7 +222,12 @@
             queue[tail++] = j;
           }
       }
-      if (tail < g.length * 0.18 || points.length < 4) continue;
+      if (
+        tail < g.length * 0.18 ||
+        points.length < 4 ||
+        touches > Math.min(w, h) * 0.3
+      )
+        continue;
       const q = [
         points.reduce((a, b) => (a.x + a.y < b.x + b.y ? a : b)),
         points.reduce((a, b) => (a.x - a.y > b.x - b.y ? a : b)),
@@ -163,6 +247,110 @@
         candidate = { corners: q, area: size };
     }
     return candidate?.corners || null;
+  }
+  function detectDocument(image) {
+    const light = detectRegion(image),
+      dark = detectRegion(image, true);
+    if (light && dark) return area(light) >= area(dark) ? light : dark;
+    return light || dark || detectEdges(image);
+  }
+  // Hough-line fallback uses boundary evidence instead of page brightness.
+  function detectEdges(image) {
+    const w = image.width,
+      h = image.height,
+      g = smoothGray(image),
+      points = [];
+    for (let y = 2; y < h - 2; y += 2)
+      for (let x = 2; x < w - 2; x += 2) {
+        const i = y * w + x,
+          gx = g[i + 1] - g[i - 1],
+          gy = g[i + w] - g[i - w],
+          m = Math.hypot(gx, gy);
+        if (m > 16) points.push({ x, y, m: Math.min(80, m) });
+      }
+    if (points.length < 40) return null;
+    const diagonal = Math.ceil(Math.hypot(w, h)),
+      bins = diagonal * 2 + 1,
+      peaks = [];
+    for (let deg = 0; deg < 180; deg += 3) {
+      const angle = (deg * Math.PI) / 180,
+        c = Math.cos(angle),
+        sn = Math.sin(angle),
+        votes = new Float32Array(bins);
+      for (const p of points) {
+        const rho = Math.round(p.x * c + p.y * sn) + diagonal;
+        votes[rho] += p.m;
+      }
+      for (let r = 2; r < bins - 2; r++)
+        if (
+          votes[r] > Math.min(w, h) * 10 &&
+          votes[r] >= votes[r - 1] &&
+          votes[r] >= votes[r + 1]
+        )
+          peaks.push({ c, s: sn, r: r - diagonal, score: votes[r], deg });
+    }
+    peaks.sort((a, b) => b.score - a.score);
+    const lines = [];
+    for (const p of peaks) {
+      if (
+        lines.some(
+          (l) => Math.abs(l.deg - p.deg) < 7 && Math.abs(l.r - p.r) < 8,
+        )
+      )
+        continue;
+      lines.push(p);
+      if (lines.length === 24) break;
+    }
+    function intersect(a, b) {
+      const d = a.c * b.s - b.c * a.s;
+      if (Math.abs(d) < 0.4) return null;
+      return { x: (a.r * b.s - b.r * a.s) / d, y: (a.c * b.r - b.c * a.r) / d };
+    }
+    let best = null;
+    const vertical = lines.filter((l) => l.deg < 31 || l.deg > 149),
+      horizontal = lines.filter((l) => l.deg > 59 && l.deg < 121);
+    for (let a = 0; a < vertical.length; a++)
+      for (let b = a + 1; b < vertical.length; b++)
+        for (let c = 0; c < horizontal.length; c++)
+          for (let d = c + 1; d < horizontal.length; d++) {
+            const points = [
+              intersect(vertical[a], horizontal[c]),
+              intersect(vertical[b], horizontal[c]),
+              intersect(vertical[b], horizontal[d]),
+              intersect(vertical[a], horizontal[d]),
+            ];
+            if (
+              points.some(
+                (p) => !p || p.x < 2 || p.x > w - 3 || p.y < 2 || p.y > h - 3,
+              )
+            )
+              continue;
+            const center = {
+              x: points.reduce((s, p) => s + p.x, 0) / 4,
+              y: points.reduce((s, p) => s + p.y, 0) / 4,
+            };
+            points.sort(
+              (a, b) =>
+                Math.atan2(a.y - center.y, a.x - center.x) -
+                Math.atan2(b.y - center.y, b.x - center.x),
+            );
+            const first = points.reduce(
+                (best, p, i) =>
+                  p.x + p.y < points[best].x + points[best].y ? i : best,
+                0,
+              ),
+              q = points.slice(first).concat(points.slice(0, first)),
+              size = area(q);
+            if (!validQuad(q) || size < w * h * 0.2 || size > w * h * 0.94)
+              continue;
+            const score =
+              vertical[a].score +
+              vertical[b].score +
+              horizontal[c].score +
+              horizontal[d].score;
+            if (!best || score > best.score) best = { q, score };
+          }
+    return best?.q || null;
   }
   // Map a unit square to a quadrilateral using a projective homography.
   function homography(q) {
@@ -223,6 +411,43 @@
         data[i + 3] = 255;
       }
     return { width, height, data };
+  }
+  function flattenBook(
+    image,
+    topBend = 0,
+    bottomBend = 0,
+    maxPixels = 4000000,
+  ) {
+    if (
+      !Number.isFinite(topBend) ||
+      !Number.isFinite(bottomBend) ||
+      Math.abs(topBend) > 0.25 ||
+      Math.abs(bottomBend) > 0.25
+    )
+      throw Error("Book curvature must be between -25% and 25%.");
+    const { width: w, height: h } = image,
+      data = new Uint8ClampedArray(image.data.length);
+    if (w * h > maxPixels)
+      throw Error("Resize the book page before flattening.");
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const u = x / (w - 1),
+          v = y / (h - 1),
+          curve = 4 * u * (1 - u),
+          top = topBend * h * curve,
+          bottom = h - 1 + bottomBend * h * curve;
+        const sy = clamp(top + (bottom - top) * v, 0, h - 1),
+          y0 = Math.floor(sy),
+          y1 = Math.min(h - 1, y0 + 1),
+          f = sy - y0,
+          i = (y * w + x) * 4;
+        for (let c = 0; c < 3; c++)
+          data[i + c] =
+            image.data[(y0 * w + x) * 4 + c] * (1 - f) +
+            image.data[(y1 * w + x) * 4 + c] * f;
+        data[i + 3] = 255;
+      }
+    return { width: w, height: h, data };
   }
   function enhance(image, mode) {
     if (mode === "original") return image;
@@ -332,32 +557,145 @@
     };
   }
   function identify(text) {
-    const type = /\binvoice\b/i.test(text)
-      ? "Invoice"
-      : /\b(receipt|change due|cashier)\b/i.test(text)
-        ? "Receipt"
-        : /\b(passport|identity card|date of birth|national id)\b/i.test(text)
-          ? "ID document"
-          : /\b(dear|yours sincerely|yours faithfully)\b/i.test(text)
-            ? "Letter"
-            : "Document";
-    const fields = [];
+    const normalized = text.normalize("NFKC"),
+      rules = [
+        ["Invoice", [/\binvoice\b/i, /\bamount due\b/i, /\bbill to\b/i]],
+        ["Receipt", [/\breceipt\b/i, /\bcashier\b/i, /\bchange due\b/i]],
+        [
+          "ID document",
+          [/\bpassport\b/i, /\bidentity card\b/i, /\bnational id\b/i],
+        ],
+        [
+          "Bank statement",
+          [
+            /\bbank statement\b/i,
+            /\bopening balance\b/i,
+            /\bclosing balance\b/i,
+          ],
+        ],
+        [
+          "Business card",
+          [/\bbusiness card\b/i, /\bmobile\s*:/i, /\bwebsite\s*:/i],
+        ],
+        [
+          "Form",
+          [
+            /\bapplication form\b/i,
+            /\bregistration form\b/i,
+            /\bsignature\s*:/i,
+          ],
+        ],
+        [
+          "Letter",
+          [/\bdear\b/i, /\byours sincerely\b/i, /\byours faithfully\b/i],
+        ],
+      ];
+    const scored = rules
+      .map(([type, patterns]) => ({
+        type,
+        score: patterns.reduce((n, p) => n + (p.test(normalized) ? 1 : 0), 0),
+      }))
+      .sort((a, b) => b.score - a.score);
+    const selected = scored[0];
+    let type = selected.score ? selected.type : "Document";
+    // A generic signature or phone label alone is not sufficient to identify a form/card.
+    if (
+      type === "Form" &&
+      !/application form|registration form/i.test(normalized)
+    )
+      type = "Document";
+    if (
+      type === "Business card" &&
+      !/business card/i.test(normalized) &&
+      selected.score < 2
+    )
+      type = "Document";
+    const fields = [],
+      money =
+        "((?:(?:USD|EUR|GBP|NGN|JPY|CNY|INR|[$€£₦¥₹])\\s*)?\\d[\\d,.]*(?:\\s*(?:USD|EUR|GBP|NGN|JPY|CNY|INR))?)";
     const patterns = [
       [
         "Date",
-        /\b(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4})\b/,
+        /\b(?:date\s*[:\-]?\s*)?(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4})\b/i,
       ],
       [
         "Total",
-        /\b(?:grand\s+total|amount\s+due|total)\s*[:=]?\s*((?:(?:USD|EUR|GBP|NGN|[$€£₦])\s*)?[\d,.]+(?:\s*(?:USD|EUR|GBP|NGN))?)/i,
+        new RegExp(
+          "(?:^|\\n)\\s*(?:grand\\s+total|amount\\s+due|total)\\s*[:=]?\\s*" +
+            money,
+          "i",
+        ),
       ],
       ["Invoice number", /\binvoice\s*(?:number|no\.?|#)\s*[:.]?\s*([\w/-]+)/i],
+      ["Email", /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i],
+      [
+        "Phone",
+        /(?:phone|tel(?:ephone)?|mobile)\s*[:.]?\s*(\+?[\d(][\d ()-]{6,}\d)/i,
+      ],
+      ["Website", /\b((?:https?:\/\/|www\.)[^\s<>]+)/i],
+      ["Currency", /\b(USD|EUR|GBP|NGN|JPY|CNY|INR)\b/],
+      ["Tax", new RegExp("(?:^|\\n)\\s*(?:VAT|tax)\\s*[:=]?\\s*" + money, "i")],
+      ["Due date", /\bdue\s+date\s*[:.]?\s*([^\n]+)/i],
     ];
-    for (const [name, re] of patterns) {
-      const m = text.match(re);
-      if (m) fields.push(`${name}: ${(m[1] || m[0]).trim()}`);
+    if (type === "ID document")
+      patterns.push(
+        ["Name", /\b(?:full name|surname|name)\s*[:.]\s*([^\n]+)/i],
+        [
+          "Document number",
+          /\b(?:passport|document|id)\s*(?:number|no\.?|#)\s*[:.]?\s*([\w/-]+)/i,
+        ],
+        ["Date of birth", /\b(?:date of birth|DOB)\s*[:.]?\s*([^\n]+)/i],
+        ["Expiry", /\b(?:expiry|expires|expiration date)\s*[:.]?\s*([^\n]+)/i],
+      );
+    if (type === "Bank statement")
+      patterns.push(
+        [
+          "Account (last four)",
+          /\baccount\s*(?:number|no\.?|#)\s*[:.]?\s*[\d *Xx-]*?(\d{4})(?=\s*(?:\n|$))/i,
+        ],
+        [
+          "Opening balance",
+          new RegExp("opening\\s+balance\\s*[:=]?\\s*" + money, "i"),
+        ],
+        [
+          "Closing balance",
+          new RegExp("closing\\s+balance\\s*[:=]?\\s*" + money, "i"),
+        ],
+      );
+    for (const [label, re] of patterns) {
+      const m = normalized.match(re);
+      if (m) fields.push(label + ": " + (m[1] || m[0]).trim());
     }
     return { type, fields: fields.join("\n") };
+  }
+  function pdfUnicodeHex(text) {
+    let hex = "FEFF";
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i);
+      hex += c.toString(16).padStart(4, "0");
+    }
+    return hex.toUpperCase();
+  }
+  function textRuns(page) {
+    if (!page.text) return [];
+    // Preserve exact OCR geometry only when the reviewed text matches its recognition snapshot.
+    if (page.words?.length && (!page.ocrText || page.text === page.ocrText))
+      return page.words.filter((w) => w.text && w.bbox);
+    const lines = page.text.split(/\r?\n/).filter((s) => s.trim()),
+      step = Math.min(
+        page.height * 0.035,
+        (page.height * 0.9) / Math.max(1, lines.length),
+      );
+    return lines.map((text, i) => ({
+      text,
+      bbox: {
+        x0: page.width * 0.04,
+        y0: page.height * 0.04 + i * step,
+        x1: page.width * 0.96,
+        y1: page.height * 0.04 + (i + 1) * step,
+      },
+      approximate: true,
+    }));
   }
   const api = {
     clamp,
@@ -366,6 +704,10 @@
     area,
     fullCorners,
     quality,
+    documentQuality,
+    flattenBook,
+    pdfUnicodeHex,
+    textRuns,
     detectDocument,
     homography,
     warp,

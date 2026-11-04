@@ -21,7 +21,8 @@ const state = {
 };
 const engines = {
   pdf: "vendor/jspdf.umd.min.js",
-  ocr: "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js",
+  ocr: "vendor/tesseract.min.js",
+  barcode: "vendor/zxing.min.js",
 };
 const scripts = new Map();
 function message(text) {
@@ -126,6 +127,12 @@ function updateControls() {
     state.busy || !state.source || !C.validQuad(state.corners || []);
   $("recognizeBtn").disabled = state.ocrBusy || state.busy;
   $("saveTextBtn").disabled = state.ocrBusy;
+  $("ocrLanguage").disabled = state.ocrBusy;
+  $("prepareOCRBtn").disabled = state.ocrBusy;
+  $("removeOCRBtn").disabled = state.ocrBusy;
+  $("barcodeBtn").disabled = state.ocrBusy;
+  $("cancelOCRBtn").disabled = !state.ocrBusy;
+  $("closeTextBtn").disabled = state.ocrBusy;
   $("pageCount").textContent = state.pages.length;
 }
 let cameraGeneration = 0;
@@ -211,8 +218,8 @@ function liveCheck() {
         );
       c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
       const im = c.getContext("2d").getImageData(0, 0, c.width, c.height),
-        q = C.quality(im),
         corners = C.detectDocument(im),
+        q = C.documentQuality(im, corners),
         overlay = $("liveOverlay");
       overlay.width = c.width;
       overlay.height = c.height;
@@ -284,10 +291,16 @@ function detectCorners() {
 }
 function openCrop(canvas) {
   state.source = canvas;
+  $("topCurve").value = 0;
+  $("bottomCurve").value = 0;
+  $("topCurveValue").value = "0%";
+  $("bottomCurveValue").value = "0%";
+  $("bookEnabled").checked = false;
+  $("bookControls").open = false;
   $("cropModal").showModal();
   detectCorners();
   const { data } = sample(canvas);
-  const warnings = C.quality(data).warnings;
+  const warnings = C.documentQuality(data, C.detectDocument(data)).warnings;
   if (warnings.length) $("cropAdvice").textContent += " " + warnings.join(" ");
   updateControls();
 }
@@ -317,6 +330,7 @@ function drawCrop() {
     ctx.fillText(i + 1, p.x * s - 4, p.y * s + 4);
   });
   syncCornerControls();
+  if ($("bookControls").open) queueBookPreview();
   updateControls();
 }
 function syncCornerControls() {
@@ -399,6 +413,47 @@ $("rotateCropBtn").onclick = () => {
   state.corners = C.fullCorners(state.source.width, state.source.height);
   drawCrop();
 };
+let bookTimer;
+function queueBookPreview() {
+  clearTimeout(bookTimer);
+  bookTimer = setTimeout(() => {
+    if (!state.source || !C.validQuad(state.corners)) return;
+    try {
+      const { data, scale } = sample(state.source, 700),
+        corners = state.corners.map((p) => ({
+          x: p.x / scale,
+          y: p.y / scale,
+        }));
+      let out = C.warp(data, corners, 350000);
+      if ($("bookEnabled").checked)
+        out = C.flattenBook(
+          out,
+          Number($("topCurve").value) / 100,
+          Number($("bottomCurve").value) / 100,
+        );
+      const c = $("bookPreview");
+      c.width = out.width;
+      c.height = out.height;
+      c.getContext("2d").putImageData(
+        new ImageData(out.data, out.width, out.height),
+        0,
+        0,
+      );
+    } catch (err) {
+      $("cropAdvice").textContent = err.message;
+    }
+  }, 80);
+}
+$("bookEnabled").onchange = queueBookPreview;
+$("bookControls").ontoggle = () => {
+  if ($("bookControls").open) queueBookPreview();
+};
+for (const edge of ["top", "bottom"])
+  $(edge + "Curve").oninput = () => {
+    $(edge + "CurveValue").value = $(edge + "Curve").value + "%";
+    $("bookEnabled").checked = true;
+    queueBookPreview();
+  };
 $("cancelCropBtn").onclick = closeCrop;
 $("confirmCropBtn").onclick = async () => {
   if (state.busy || !state.source || !C.validQuad(state.corners)) return;
@@ -415,6 +470,12 @@ $("confirmCropBtn").onclick = async () => {
         .getImageData(0, 0, state.source.width, state.source.height),
       state.corners,
     );
+    if ($("bookEnabled").checked)
+      im = C.flattenBook(
+        im,
+        Number($("topCurve").value) / 100,
+        Number($("bottomCurve").value) / 100,
+      );
     im = C.enhance(im, $("enhancement").value);
     let canvas = makeCanvas(im.width, im.height);
     canvas
@@ -551,6 +612,7 @@ function renderPages() {
         page.paper = [page.paper[1], page.paper[0]];
         page.words = [];
         page.text = "";
+        page.ocrText = "";
         page.type = "Document";
         page.fields = "";
         page.confidence = null;
@@ -585,11 +647,8 @@ function openText(page) {
     page.confidence === null
       ? "Review recognition before relying on it."
       : `Average OCR confidence: ${Math.round(page.confidence)}%. Check names, dates and amounts.`;
-  $("barcodeBtn").disabled = !("BarcodeDetector" in window);
-  $("barcodeBtn").title =
-    "BarcodeDetector" in window
-      ? "Read a barcode on this page"
-      : "Barcode recognition is unavailable in this browser.";
+  $("barcodeBtn").disabled = false;
+  updatePackStatus();
   $("textModal").showModal();
 }
 function closeText() {
@@ -608,6 +667,86 @@ $("textModal").addEventListener("cancel", (e) => {
   e.preventDefault();
   closeText();
 });
+let packGeneration = 0,
+  operation = null;
+async function updatePackStatus() {
+  const generation = ++packGeneration;
+  try {
+    const info = await OfflineOCR.status($("ocrLanguage").value);
+    if (generation !== packGeneration) return;
+    $("packStatus").textContent = info.ready
+      ? "Language downloaded and ready for offline OCR."
+      : `Language not downloaded. Download size including shared engine: ${(info.bytes / 1048576).toFixed(1)} MB.`;
+    $("removeOCRBtn").disabled = state.ocrBusy || !info.ready;
+  } catch (err) {
+    if (generation === packGeneration)
+      $("packStatus").textContent = err.message;
+  }
+}
+$("ocrLanguage").onchange = updatePackStatus;
+function beginOperation() {
+  const controller = new AbortController();
+  let reject;
+  const cancelled = new Promise((_, r) => (reject = r));
+  cancelled.catch(() => {});
+  const op = { controller, cancelled, reject, worker: null };
+  operation = op;
+  state.ocrBusy = true;
+  updateControls();
+  return op;
+}
+function checkOperation(op) {
+  op.controller.signal.throwIfAborted();
+}
+async function endOperation(op) {
+  if (op.worker) await op.worker.terminate().catch(() => {});
+  if (operation === op) {
+    operation = null;
+    state.ocrBusy = false;
+    updateControls();
+    await updatePackStatus();
+  }
+}
+$("cancelOCRBtn").onclick = () => {
+  if (!operation) return;
+  operation.controller.abort();
+  operation.reject(Error("Operation cancelled."));
+  operation.worker?.terminate().catch(() => {});
+};
+function packProgress(done, total) {
+  $("packStatus").textContent =
+    `Downloading language: ${Math.round((done / total) * 100)}% (${(done / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB)`;
+}
+$("prepareOCRBtn").onclick = async () => {
+  if (state.ocrBusy) return;
+  const op = beginOperation();
+  try {
+    await Promise.race([
+      OfflineOCR.prepare($("ocrLanguage").value, {
+        signal: op.controller.signal,
+        onProgress: packProgress,
+      }),
+      op.cancelled,
+    ]);
+    $("ocrStatus").textContent =
+      "Language verified and saved. You can recognize pages offline.";
+  } catch (err) {
+    $("ocrStatus").textContent = op.controller.signal.aborted
+      ? "Download cancelled. Completed shared assets are kept for retry."
+      : err.message;
+  } finally {
+    await endOperation(op);
+  }
+};
+$("removeOCRBtn").onclick = async () => {
+  if (state.ocrBusy) return;
+  try {
+    await OfflineOCR.remove($("ocrLanguage").value);
+    await updatePackStatus();
+  } catch (err) {
+    $("packStatus").textContent = err.message;
+  }
+};
 $("recognizeBtn").onclick = async () => {
   if (state.ocrBusy || !state.editing) return;
   for (const key of [
@@ -617,24 +756,37 @@ $("recognizeBtn").onclick = async () => {
     "pendingImage",
   ])
     delete state.editing[key];
-  state.ocrBusy = true;
-  updateControls();
-  $("closeTextBtn").disabled = true;
-  $("barcodeBtn").disabled = true;
-  $("ocrStatus").textContent = "Downloading text recognition engine…";
+  const op = beginOperation();
+  $("ocrStatus").textContent = "Preparing text recognition…";
   let worker;
   try {
-    await loadScript(engines.ocr);
-    worker = await Tesseract.createWorker($("ocrLanguage").value, 1, {
-      workerPath:
-        "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js",
-      corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1",
-      langPath: "https://tessdata.projectnaptha.com/4.0.0",
+    const options = await Promise.race([
+      OfflineOCR.prepare($("ocrLanguage").value, {
+        signal: op.controller.signal,
+        onProgress: packProgress,
+      }),
+      op.cancelled,
+    ]);
+    checkOperation(op);
+    await Promise.race([loadScript(engines.ocr), op.cancelled]);
+    checkOperation(op);
+    const workerPromise = Tesseract.createWorker($("ocrLanguage").value, 1, {
+      ...options,
+      errorHandler: (e) => op.reject(Error(String(e))),
       logger: (m) => {
-        $("ocrStatus").textContent =
-          `${m.status}${m.progress === undefined ? "" : ` ${Math.round(m.progress * 100)}%`}`;
+        if (operation === op && !op.controller.signal.aborted)
+          $("ocrStatus").textContent =
+            `${m.status}${m.progress === undefined ? "" : ` ${Math.round(m.progress * 100)}%`}`;
       },
     });
+    workerPromise
+      .then((w) => {
+        if (op.controller.signal.aborted) w.terminate().catch(() => {});
+        else op.worker = w;
+      })
+      .catch(() => {});
+    worker = await Promise.race([workerPromise, op.cancelled]);
+    checkOperation(op);
     let recognitionImage = state.editing.image;
     state.editing.pendingImage = null;
     if ($("autoOrient").checked) {
@@ -646,9 +798,11 @@ $("recognizeBtn").onclick = async () => {
         baseline = 0;
       for (const angle of [0, 90, 180, 270]) {
         $("ocrStatus").textContent = `Checking text orientation: ${angle}°…`;
-        const { data: probe } = await worker.recognize(
-          angle ? rotate(preview, angle) : preview,
-        );
+        const { data: probe } = await Promise.race([
+          worker.recognize(angle ? rotate(preview, angle) : preview),
+          op.cancelled,
+        ]);
+        checkOperation(op);
         const count = probe.text.replace(/\s/g, "").length,
           score = count >= 8 ? probe.confidence * Math.min(1, count / 30) : 0;
         if (angle === 0) baseline = score;
@@ -668,7 +822,11 @@ $("recognizeBtn").onclick = async () => {
         };
       }
     }
-    const { data } = await worker.recognize(recognitionImage);
+    const { data } = await Promise.race([
+      worker.recognize(recognitionImage),
+      op.cancelled,
+    ]);
+    checkOperation(op);
     const proposed = C.identify(data.text);
     state.editing.pendingWords = (data.words || []).map((w) => ({
       text: w.text,
@@ -690,14 +848,11 @@ $("recognizeBtn").onclick = async () => {
       "pendingImage",
     ])
       delete state.editing[key];
-    $("ocrStatus").textContent =
-      `Recognition failed: ${err.message}. Check your connection for engine/language downloads, then retry.`;
+    $("ocrStatus").textContent = op.controller.signal.aborted
+      ? "Recognition cancelled. Your saved page and text are unchanged."
+      : `Recognition failed: ${err.message || String(err)}. Check the downloaded language status and retry.`;
   } finally {
-    if (worker) await worker.terminate().catch(() => {});
-    state.ocrBusy = false;
-    $("closeTextBtn").disabled = false;
-    $("barcodeBtn").disabled = !("BarcodeDetector" in window);
-    updateControls();
+    await endOperation(op);
   }
 };
 $("saveTextBtn").onclick = async () => {
@@ -707,8 +862,12 @@ $("saveTextBtn").onclick = async () => {
   // Do not place stale OCR word boxes into the searchable layer after manual corrections.
   if (p.pendingImage) Object.assign(p, p.pendingImage);
   delete p.pendingImage;
-  p.words =
-    p.pendingText === text ? p.pendingWords : p.text === text ? p.words : [];
+  if (p.pendingText !== undefined) {
+    p.ocrText = p.pendingText;
+    p.words = p.pendingWords || [];
+  } else if (!p.ocrText && p.words?.length) p.ocrText = p.text;
+  if (p.text !== text && p.pendingText === undefined && !p.ocrText)
+    p.words = [];
   p.confidence = p.pendingConfidence ?? p.confidence;
   p.text = text;
   p.type = $("documentType").value;
@@ -723,33 +882,74 @@ $("saveTextBtn").onclick = async () => {
   renderPages();
   await persistDraft();
   message(
-    "Recognition review saved. Corrected text is included in the text download.",
+    "Recognition review saved. Your reviewed text is included in PDF search and text download.",
   );
 };
 $("barcodeBtn").onclick = async () => {
-  if (state.ocrBusy || !state.editing || !("BarcodeDetector" in window)) return;
-  state.ocrBusy = true;
-  updateControls();
-  $("closeTextBtn").disabled = true;
+  if (state.ocrBusy || !state.editing) return;
+  const op = beginOperation();
   try {
-    const formats = await BarcodeDetector.getSupportedFormats(),
-      detector = new BarcodeDetector({ formats }),
-      img = new Image();
+    const img = new Image();
     img.src = state.editing.image;
     await img.decode();
-    const codes = await detector.detect(img);
+    checkOperation(op);
+    let codes = [];
+    if ("BarcodeDetector" in window) {
+      try {
+        const formats = await BarcodeDetector.getSupportedFormats();
+        codes = await new BarcodeDetector({ formats }).detect(img);
+      } catch {
+        /* Use the portable decoder below. */
+      }
+    }
+    if (!codes.length) {
+      await Promise.race([loadScript(engines.barcode), op.cancelled]);
+      checkOperation(op);
+      const hints = new Map([[ZXing.DecodeHintType.TRY_HARDER, true]]),
+        reader = new ZXing.MultiFormatReader();
+      for (const angle of [0, 90, 180, 270]) {
+        checkOperation(op);
+        const canvas = angle
+          ? rotate(imageCanvas(img), angle)
+          : imageCanvas(img);
+        try {
+          const result = reader.decode(
+            new ZXing.BinaryBitmap(
+              new ZXing.HybridBinarizer(
+                new ZXing.HTMLCanvasElementLuminanceSource(canvas),
+              ),
+            ),
+            hints,
+          );
+          codes = [
+            {
+              format: ZXing.BarcodeFormat[result.getBarcodeFormat()],
+              rawValue: result.getText(),
+            },
+          ];
+          break;
+        } catch (err) {
+          if (
+            !(err instanceof ZXing.NotFoundException) &&
+            !(err instanceof ZXing.ChecksumException) &&
+            !(err instanceof ZXing.FormatException)
+          )
+            throw err;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
+    checkOperation(op);
     $("identifiedFields").value +=
       (codes.length ? "\n" : "") +
       codes.map((c) => `${c.format}: ${c.rawValue}`).join("\n");
     $("ocrStatus").textContent = codes.length
       ? "Code values found. Review and save; links are never opened automatically."
-      : "No supported barcode found.";
+      : "No supported QR or barcode found. Try a clearer, closer scan.";
   } catch (err) {
     $("ocrStatus").textContent = `Could not read barcode: ${err.message}`;
   } finally {
-    state.ocrBusy = false;
-    $("closeTextBtn").disabled = false;
-    updateControls();
+    await endOperation(op);
   }
 };
 function filename() {
@@ -808,26 +1008,7 @@ $("downloadPdfBtn").onclick = async () => {
         undefined,
         "FAST",
       );
-      // Built-in Helvetica supports a limited Latin encoding. Keep other scripts in the UTF-8 text export.
-      for (const word of p.words || []) {
-        if (!word.text || !/^[\x20-\x7e\u00a0-\u00ff]+$/.test(word.text))
-          continue;
-        const b = word.bbox;
-        if (!b || b.x1 <= b.x0 || b.y1 <= b.y0) continue;
-        const height = ((b.y1 - b.y0) / p.height) * box.height,
-          width = ((b.x1 - b.x0) / p.width) * box.width;
-        pdf.setFontSize(Math.max(1, (height * 72) / 25.4));
-        const natural = pdf.getTextWidth(word.text);
-        pdf.text(
-          word.text,
-          box.x + (b.x0 / p.width) * box.width,
-          box.y + (b.y1 / p.height) * box.height,
-          {
-            renderingMode: "invisible",
-            horizontalScale: natural ? width / natural : 1,
-          },
-        );
-      }
+      PDFText.addSearchText(pdf, p, box);
       message(`Preparing PDF: ${i + 1}/${state.pages.length}`);
       await new Promise((resolve) => setTimeout(resolve, 0));
     }

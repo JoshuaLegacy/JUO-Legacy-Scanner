@@ -234,3 +234,26 @@ dialog label {
     flex-grow: 1;
   }
 }
+
+#bookPreview {
+  width: 100%;
+  max-height: 42vh;
+  object-fit: contain;
+  background: #e6ebe7;
+}
+details {
+  margin: 12px 0;
+  border: 1px solid #c8d8ce;
+  border-radius: 8px;
+  padding: 10px;
+}
+summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+#packStatus {
+  font-size: 0.85rem;
+}
+#cancelOCRBtn:disabled {
+  display: none;
+}
