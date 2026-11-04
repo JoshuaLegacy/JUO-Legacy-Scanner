@@ -8,10 +8,20 @@ A static, browser-based document scanner by Joshua Orizu. Camera images, recogni
 2. Place the document on a contrasting surface under even light. The preview gives heuristic focus, exposure and shadow warnings. Automatic capture is optional and waits for a stable detected page.
 3. Capture and check all four corners. Drag the corner handles or use the keyboard-accessible corner sliders. Perspective correction turns the selected quadrilateral into a rectangle. Rotate before adding if needed.
 4. Choose Original, Color Document, Grayscale or Black & White before adding a page. Document modes reduce uneven illumination using local contrast normalization; optional text deskew corrects small angles up to 5°.
-5. Review page thumbnails. Reorder, delete or rotate pages. Rotating an existing page clears its OCR because the word coordinates would otherwise be wrong.
+5. Review page thumbnails. Reorder/delete pages, or open **Edit / Retake** to adjust a saved page. Rotate opens a preview that must be saved. Crop/straighten, change enhancement mode, or capture/import a replacement, then choose **Save changes** or **Cancel**. A saved replacement keeps the page in its original document position. **Undo edit** restores the image and text from before the last saved image edit; there is one undo version per page, including after a successful local-draft save and reload.
 6. Open **Text / identify**, choose a language, recognize text, and review the result. Optional orientation detection compares four rotations and corrects the image when recognition improves. It takes longer than recognizing upright text.
 7. Review the suggested document category and fields. The app combines category cues and extracts dates, totals, invoice numbers, contact details, tax, due dates, ID labels or statement balances where present. These are heuristic suggestions, not verified facts or identity verification. QR/barcodes use native detection where available and a bundled ZXing fallback otherwise; scanned links are never opened automatically.
 8. Download the PDF and/or UTF-8 text. Downloads keep the draft. **Clear document** explicitly removes the saved pages and text from this browser.
+
+## Editing saved pages
+
+New pages retain a bounded source JPEG before perspective correction and enhancement, together with their crop, enhancement and rotation settings. The editor reprocesses this retained source for each preview, rather than repeatedly recompressing the last enhanced result. Save commits the preview; Cancel discards temporary changes. Crop uses the existing corner controls and optional guided book correction. Camera retakes and replacement photos do not overwrite a saved page until accepted with Save. Cancelling a retake, denying camera permissions or receiving a late permission response leaves the saved page intact and releases its camera tracks.
+
+Older drafts without a retained source still open using their saved image. The editor explains that lost color, cropped content or original detail cannot be recovered. After saving, that available image becomes the retained source for future edits. Retaking/importing a replacement supplies a new source.
+
+Image edits invalidate positioned OCR words. Previously reviewed text and fields are retained and labelled **text needs review**, with a reference copy in Text / identify. They are excluded from PDF search until recognition is run again or you explicitly confirm that the text and fields match the edited image and save the review. UTF-8 text downloads label retained, unreviewed text. This prevents a replacement photo from silently exporting stale searchable text. One-step undo restores the previous image, source, settings and recognition state; later edits replace that undo version.
+
+Sources and undo versions increase local storage and memory use. Browser quotas/eviction still apply. A failed local save warns that the current edit is only in memory: export before closing the tab. Clearing a page/document also removes its source and undo record from the active draft. Brightness/contrast sliders and a multi-step edit history are not included in this version.
 
 ## Quality and resource limits
 
@@ -63,6 +73,7 @@ python -m playwright install chromium
 # Keep the local HTTP server running in another terminal.
 python tests/browser_checks.py
 python tests/followup_checks.py
+python tests/editor_checks.py
 # Optional: real OCR/orientation integration; downloads engines and language data.
 SCANNER_TEST_OCR=1 python tests/browser_checks.py
 # Verify a fresh worker can recognize text after an offline reload:
@@ -72,4 +83,4 @@ SCANNER_TEST_OFFLINE_OCR=1 SCANNER_ASSET_FIXTURES=/tmp/scanner-ocr-fixtures pyth
 
 Set `CHROMIUM_PATH` to use a system Chromium and `SCANNER_URL` to test another local server URL. The optional asset-fixture test downloads and verifies real pinned engines/models before supplying them to browser download requests; the worker itself then runs with networking disabled. The browser checks use generated document fixtures and a simulated camera; they cover capture/cancel, import/detection, page processing, reviewed text export, draft recovery, real PDF generation, offline reload/export, rotation invalidation and clear. Real phone cameras, focus, performance and iOS/Android permission behavior still require device testing.
 
-The `scan-core.js` module contains pure algorithms; `script.js` owns app state and browser interactions. `offline-ocr.js` manages verified packs, `ocr-assets.json` pins their origins and hashes, and `pdf-text.js` writes Unicode replacement text. Third-party jsPDF, Tesseract, ZXing and model licenses are retained in `vendor/`. GitHub Actions runs syntax, algorithm and browser checks, including real offline OCR with the prepared English pack.
+The `scan-core.js` module contains pure algorithms; `script.js` owns app state and browser interactions. `page-model.js` handles immutable edit/undo transactions and `page-editor.js` owns temporary previews, crop integration and retake camera cleanup. `offline-ocr.js` manages verified packs, `ocr-assets.json` pins their origins and hashes, and `pdf-text.js` writes Unicode replacement text. Third-party jsPDF, Tesseract, ZXing and model licenses are retained in `vendor/`. GitHub Actions runs syntax, algorithm and browser checks, including real offline OCR with the prepared English pack.

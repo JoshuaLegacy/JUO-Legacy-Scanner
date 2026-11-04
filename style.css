@@ -257,3 +257,31 @@ summary {
 #cancelOCRBtn:disabled {
   display: none;
 }
+
+#editorPreview {
+  display: block;
+  width: 100%;
+  height: 45vh;
+  object-fit: contain;
+  background: #e6ebe7;
+  border-radius: 8px;
+}
+#editorCameraPanel video {
+  max-height: 40vh;
+  width: 100%;
+  object-fit: contain;
+}
+#pageEditor .options {
+  margin-top: 12px;
+}
+#editorStatus {
+  min-height: 1.5em;
+  font-weight: 600;
+}
+.button[aria-disabled="true"] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+[hidden] {
+  display: none !important;
+}

@@ -1,13 +1,15 @@
 /* Keep the app shell offline; optional engines are cached only after successful downloads. */
 "use strict";
 const CACHE_PREFIX = "juo-legacy-scanner-";
-const CACHE_NAME = CACHE_PREFIX + "v4";
+const CACHE_NAME = CACHE_PREFIX + "v5";
 const SHELL = [
   "./",
   "./index.html",
   "./style.css",
   "./script.js",
   "./scan-core.js",
+  "./page-model.js",
+  "./page-editor.js",
   "./offline-ocr.js",
   "./pdf-text.js",
   "./ocr-assets.json",
