@@ -1,7 +1,7 @@
 /* Keep the app shell offline; optional engines are cached only after successful downloads. */
 "use strict";
 const CACHE_PREFIX = "juo-legacy-scanner-";
-const CACHE_NAME = CACHE_PREFIX + "v5";
+const CACHE_NAME = CACHE_PREFIX + "v6";
 const SHELL = [
   "./",
   "./index.html",

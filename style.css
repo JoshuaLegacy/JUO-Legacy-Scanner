@@ -285,3 +285,38 @@ summary {
 [hidden] {
   display: none !important;
 }
+
+.guide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: -20px;
+  background: #fff;
+  z-index: 2;
+  padding: 8px 0;
+  border-bottom: 1px solid #d3ddd5;
+}
+.guide-section summary {
+  padding: 6px 0;
+}
+#helpModal li {
+  margin: 8px 0;
+}
+#helpModal table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin: 12px 0;
+}
+#helpModal th,
+#helpModal td {
+  border: 1px solid #d3ddd5;
+  padding: 8px;
+  vertical-align: top;
+  text-align: left;
+}
+#helpModal a {
+  color: #236347;
+}
