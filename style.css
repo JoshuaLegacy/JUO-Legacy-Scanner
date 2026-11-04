@@ -1,100 +1,236 @@
-/* BODY AND GENERAL LAYOUT */
-body {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  margin: 0;
-  padding: 10px; /* Reduced padding for mobile */
-  background-color: #f9f9f9;
-  color: #333;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #20372c;
+  background: #f4f6f2;
+  font-size: 16px;
+  line-height: 1.5;
 }
-
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 860px;
+  margin: auto;
+  padding: 24px 18px 60px;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.eyebrow {
+  letter-spacing: 0.18em;
+  font-size: 0.7rem;
+  font-weight: 750;
+  margin: 0;
+  color: #527260;
+}
+h1 {
+  font-size: clamp(1.5rem, 5vw, 2.3rem);
+  margin: 3px 0;
+}
 h2 {
-  margin: 10px 0;
   font-size: 1.2rem;
 }
-
-/* BUTTONS CONTAINER */
+button,
+.button {
+  font: inherit;
+  background: #236347;
+  color: white;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 10px 14px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-block;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.secondary {
+  color: #234b38;
+  background: white;
+  border-color: #bdcfc3;
+}
+.danger {
+  background: #a23731;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.button:focus-visible {
+  outline: 3px solid #bf7e16;
+  outline-offset: 3px;
+}
 .controls {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: 8px;
-  width: 100%;
-  max-width: 500px;
-}
-
-button {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 12px 15px;
-  font-size: 14px; /* Slightly smaller for mobile */
-  border-radius: 6px;
-  cursor: pointer;
-  flex: 1 1 45%; /* Allows 2 buttons per row on small screens */
-  min-width: 140px;
-}
-
-/* OPTIONS GRID */
-.options {
-  margin: 10px 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* Two columns for labels/inputs */
-  gap: 8px;
-  font-size: 13px;
-  text-align: left;
   align-items: center;
-  width: 100%;
-  max-width: 400px;
+  margin: 14px 0;
 }
-
-.options label {
-  font-weight: bold;
+.camera {
+  position: relative;
+  background: #14231b;
+  border-radius: 12px;
+  overflow: hidden;
+  line-height: 0;
 }
-
-/* VIDEO ELEMENT - The "Viewing Window" */
 video {
   width: 100%;
-  max-width: 100%; 
-  height: auto;
-  max-height: 50vh; /* Limits height to 50% of the screen height */
-  background: #000;
-  border: 1px solid #ccc;
-  margin-top: 10px;
-  border-radius: 8px;
-  object-fit: contain; /* Prevents zooming/cropping */
+  max-height: 48vh;
+  object-fit: contain;
+  min-height: 180px;
 }
-
-/* PROGRESS BAR */
-#progressContainer {
+.camera canvas {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  max-width: 400px;
-  height: 12px;
-  background-color: #ddd;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  background: white;
+  padding: 18px;
+  border-radius: 12px;
+  margin-top: 20px;
+}
+label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+input,
+select,
+textarea {
+  font: inherit;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #b9c7bd;
+  border-radius: 6px;
+  background: white;
+  color: #20372c;
+  margin-top: 5px;
+}
+input[type="range"] {
+  padding: 0;
+}
+input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 400;
+}
+.hint {
+  font-size: 0.82rem;
+  color: #526359;
+}
+#status {
+  min-height: 24px;
+  font-weight: 600;
+  white-space: pre-line;
+}
+.pages {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+}
+.page {
+  background: white;
+  padding: 12px;
+  border: 1px solid #d3ddd5;
   border-radius: 10px;
-  margin: 10px auto;
 }
-
-/* MODAL ADJUSTMENTS */
-.modal-content {
-  width: 85%;
-  margin: 20% auto;
-  font-size: 14px;
+.page img {
+  height: 190px;
+  width: 100%;
+  object-fit: contain;
+  background: #e9eee9;
 }
-
-/* MOBILE SPECIFIC OVERRIDES */
-@media (max-width: 480px) {
-  h2 { font-size: 1rem; }
-  
-  button {
-    padding: 10px;
-    font-size: 13px;
+.page .controls {
+  gap: 5px;
+}
+.page button {
+  font-size: 0.8rem;
+  padding: 7px;
+}
+.page p {
+  font-size: 0.85rem;
+}
+.export {
+  margin-top: 24px;
+  border-top: 1px solid #bdcfc3;
+  padding-top: 18px;
+}
+dialog {
+  border: 1px solid #bdcfc3;
+  border-radius: 14px;
+  max-width: 720px;
+  width: calc(100% - 24px);
+  max-height: 94vh;
+  padding: 20px;
+  color: inherit;
+}
+dialog::backdrop {
+  background: #10221bbd;
+}
+#cropCanvas {
+  width: 100%;
+  max-height: 48vh;
+  object-fit: contain;
+  background: #18251e;
+  touch-action: none;
+  display: block;
+}
+.corner-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+textarea {
+  resize: vertical;
+}
+dialog label {
+  margin: 10px 0;
+}
+#recognizedText {
+  font-family: ui-monospace, monospace;
+}
+@media (max-width: 440px) {
+  main {
+    padding: 16px 12px 40px;
   }
-  
   .options {
-    grid-template-columns: 1fr; /* Stack options on very small screens */
+    gap: 10px;
+    padding: 12px;
+  }
+  .corner-controls {
+    grid-template-columns: 1fr;
+  }
+  button,
+  .button {
+    font-size: 0.9rem;
+  }
+  .controls > * {
+    flex-grow: 1;
   }
 }
