@@ -48,17 +48,17 @@ with sync_playwright() as p:
  assert Path(dl.value.path()).read_bytes().startswith(b'%PDF-')
  print('PASS offline reload, recovery, and PDF export')
  context.set_offline(False)
- page.locator('.page button',has_text='Rotate').click();page.wait_for_function('!state.busy');assert page.evaluate('state.pages[0].words.length===0 && state.pages[0].text===""')
+ page.locator('.page button',has_text='Rotate').click();page.wait_for_function('PageEditor.isOpen() && !document.getElementById("savePageEditBtn").disabled');page.locator('#savePageEditBtn').click();page.wait_for_function('!PageEditor.isOpen() && !state.busy');assert page.evaluate('state.pages[0].words.length===0 && state.pages[0].ocrStale && state.pages[0].text.includes("INV-2026-11")')
  page.screenshot(path='/tmp/scanner-preview.png',full_page=True)
  page.on('dialog',lambda d:d.accept());page.locator('#clearBtn').click();page.wait_for_function('state.pages.length===0');page.reload();page.wait_for_function('!state.restoring');assert page.locator('.page').count()==0
  if os.environ.get('SCANNER_TEST_OCR')=='1':
   page.locator('#importFile').set_input_files('/tmp/scanner-fixture.png');page.wait_for_selector('#cropModal[open]');page.locator('#confirmCropBtn').click();page.wait_for_function('state.pages.length===1 && !state.busy')
-  page.evaluate("""async () => {const p=state.pages[0],img=new Image();img.src=p.image;await img.decode();const c=rotate(imageCanvas(img),90);p.image=c.toDataURL('image/jpeg',.95);[p.width,p.height]=[p.height,p.width];p.paper=[p.paper[1],p.paper[0]];}""")
+  page.evaluate("""async () => {const p=state.pages[0],img=new Image();img.src=p.image;await img.decode();const c=rotate(imageCanvas(img),90);p.image=c.toDataURL('image/jpeg',.95);[p.width,p.height]=[p.height,p.width];p.paper=[p.paper[1],p.paper[0]];if(p.editRecipe)p.editRecipe.rotation=(p.editRecipe.rotation+90)%360;}""")
   page.locator('.page button',has_text='Text / identify').click();page.locator('#recognizeBtn').click();page.wait_for_function('!state.ocrBusy',timeout=180000)
   assert 'INVOICE' in page.locator('#recognizedText').input_value().upper(),page.locator('#ocrStatus').inner_text()
   assert page.locator('#documentType').input_value()=='Invoice'
-  page.locator('#saveTextBtn').click();assert page.evaluate('state.pages[0].words.length>0 && state.pages[0].height>state.pages[0].width')
+  page.locator('#saveTextBtn').click();assert page.evaluate('state.pages[0].words.length>0 && state.pages[0].height>state.pages[0].width && state.pages[0].editRecipe.rotation%180===0')
   print('PASS real OCR, orientation correction, classification and word coordinates')
  assert not errors,errors
- print('PASS rotation invalidates old OCR, clear removes recovered pages; no browser errors')
+ print('PASS rotation preserves reviewed text with stale geometry excluded, clear removes recovered pages; no browser errors')
  browser.close()

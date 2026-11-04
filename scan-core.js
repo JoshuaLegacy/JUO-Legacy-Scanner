@@ -677,7 +677,7 @@
     return hex.toUpperCase();
   }
   function textRuns(page) {
-    if (!page.text) return [];
+    if (!page.text || page.ocrStale) return [];
     // Preserve exact OCR geometry only when the reviewed text matches its recognition snapshot.
     if (page.words?.length && (!page.ocrText || page.text === page.ocrText))
       return page.words.filter((w) => w.text && w.bbox);

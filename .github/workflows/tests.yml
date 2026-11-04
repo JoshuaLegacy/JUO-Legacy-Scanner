@@ -28,3 +28,4 @@ jobs:
           python tests/fetch_ocr_fixtures.py
           SCANNER_TEST_OCR=1 SCANNER_ASSET_FIXTURES=/tmp/scanner-ocr-fixtures python tests/browser_checks.py
           SCANNER_TEST_OFFLINE_OCR=1 SCANNER_ASSET_FIXTURES=/tmp/scanner-ocr-fixtures python tests/followup_checks.py
+          python tests/editor_checks.py

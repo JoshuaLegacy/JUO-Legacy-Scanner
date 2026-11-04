@@ -18,6 +18,8 @@ const state = {
   db: null,
   persist: Promise.resolve(),
   restoring: true,
+  cropTarget: null,
+  cropSourceRotated: false,
 };
 const engines = {
   pdf: "vendor/jspdf.umd.min.js",
@@ -112,14 +114,20 @@ function rotate(canvas, degrees) {
 function updateControls() {
   const blocked = state.busy || state.restoring;
   $("startCameraBtn").disabled =
-    blocked || state.starting || !!state.stream || $("cropModal").open;
+    blocked ||
+    state.starting ||
+    !!state.stream ||
+    $("cropModal").open ||
+    PageEditor.isOpen();
   $("stopCameraBtn").disabled = !state.stream && !state.starting;
   $("captureBtn").disabled =
     blocked ||
     !state.stream ||
     $("preview").readyState < 2 ||
-    $("cropModal").open;
-  $("importFile").disabled = blocked || $("cropModal").open;
+    $("cropModal").open ||
+    PageEditor.isOpen();
+  $("importFile").disabled =
+    blocked || $("cropModal").open || PageEditor.isOpen();
   $("downloadPdfBtn").disabled = blocked || !state.pages.length;
   $("downloadTextBtn").disabled = blocked || !state.pages.some((p) => p.text);
   $("clearBtn").disabled = blocked || !state.pages.length;
@@ -290,6 +298,10 @@ function detectCorners() {
   drawCrop();
 }
 function openCrop(canvas) {
+  state.cropTarget = null;
+  state.cropSourceRotated = false;
+  $("cropTitle").textContent = "Adjust document edges";
+  $("confirmCropBtn").textContent = "Add page";
   state.source = canvas;
   $("topCurve").value = 0;
   $("bottomCurve").value = 0;
@@ -393,6 +405,10 @@ function closeCrop() {
   $("cropModal").close();
   state.source = null;
   state.corners = null;
+  state.cropTarget = null;
+  state.cropSourceRotated = false;
+  $("cropTitle").textContent = "Adjust document edges";
+  $("confirmCropBtn").textContent = "Add page";
   updateControls();
 }
 $("cropModal").addEventListener("cancel", (e) => {
@@ -410,6 +426,7 @@ $("resetCropBtn").onclick = () => {
 $("rotateCropBtn").onclick = () => {
   if (state.busy) return;
   state.source = rotate(state.source, 90);
+  state.cropSourceRotated = true;
   state.corners = C.fullCorners(state.source.width, state.source.height);
   drawCrop();
 };
@@ -456,6 +473,10 @@ for (const edge of ["top", "bottom"])
   };
 $("cancelCropBtn").onclick = closeCrop;
 $("confirmCropBtn").onclick = async () => {
+  if (state.cropTarget === "editor") {
+    PageEditor.acceptCrop();
+    return;
+  }
   if (state.busy || !state.source || !C.validQuad(state.corners)) return;
   state.busy = true;
   updateControls();
@@ -497,6 +518,21 @@ $("confirmCropBtn").onclick = async () => {
     const page = {
       id: crypto.randomUUID(),
       image: out.toDataURL("image/jpeg", Number($("qualitySlider").value)),
+      sourceImage: state.source.toDataURL("image/jpeg", 0.95),
+      sourceWidth: state.source.width,
+      sourceHeight: state.source.height,
+      editRecipe: {
+        corners: structuredClone(state.corners),
+        rotation: 0,
+        mode: $("enhancement").value,
+        deskew: $("deskew").checked,
+        book: $("bookEnabled").checked,
+        topCurve: Number($("topCurve").value) / 100,
+        bottomCurve: Number($("bottomCurve").value) / 100,
+        format: $("pageFormat").value,
+        dpi: Number($("dpiSelect").value),
+        quality: Number($("qualitySlider").value),
+      },
       width: out.width,
       height: out.height,
       paper: size.paper,
@@ -560,7 +596,9 @@ function renderPages() {
     img.src = page.image;
     img.alt = `Scanned page ${index + 1}`;
     const title = document.createElement("p");
-    title.textContent = `Page ${index + 1} · ${page.type}${page.text ? " · text recognized" : ""}`;
+    title.id = `page-title-${page.id}`;
+    card.setAttribute("aria-labelledby", title.id);
+    title.textContent = `Page ${index + 1} · ${page.type}${page.ocrStale ? " · text needs review" : page.text ? " · text reviewed" : ""}`;
     const controls = document.createElement("div");
     controls.className = "controls";
     function button(label, fn, disabled = false) {
@@ -571,7 +609,9 @@ function renderPages() {
       b.onclick = fn;
       controls.append(b);
     }
+    button("Edit / Retake", () => PageEditor.open(page));
     button("Text / identify", () => openText(page));
+    button("Undo edit", () => PageEditor.undo(page), !page.undo);
     button(
       "Move earlier",
       () => {
@@ -598,33 +638,7 @@ function renderPages() {
       },
       index === state.pages.length - 1,
     );
-    button("Rotate", async () => {
-      if (state.busy) return;
-      state.busy = true;
-      updateControls();
-      try {
-        const img = new Image();
-        img.src = page.image;
-        await img.decode();
-        const c = rotate(imageCanvas(img), 90);
-        page.image = c.toDataURL("image/jpeg", 0.95);
-        [page.width, page.height] = [page.height, page.width];
-        page.paper = [page.paper[1], page.paper[0]];
-        page.words = [];
-        page.text = "";
-        page.ocrText = "";
-        page.type = "Document";
-        page.fields = "";
-        page.confidence = null;
-        await persistDraft();
-        message("Page rotated. Recognize text again for the new orientation.");
-      } catch (err) {
-        error(err);
-      } finally {
-        state.busy = false;
-        renderPages();
-      }
-    });
+    button("Rotate", () => PageEditor.rotateShortcut(page));
     button("Delete", () => {
       if (state.busy) return;
       if (!confirm(`Delete page ${index + 1}?`)) return;
@@ -643,10 +657,19 @@ function openText(page) {
   $("recognizedText").value = page.text;
   $("documentType").value = page.type;
   $("identifiedFields").value = page.fields;
+  $("retainedReview").hidden = !page.priorReview;
+  $("retainedText").value = page.priorReview
+    ? `${page.priorReview.text}\n\n${page.priorReview.fields}`
+    : "";
+  $("confirmEditedReviewLabel").hidden = !page.ocrStale;
+  $("confirmEditedReview").checked = false;
   $("ocrStatus").textContent =
     page.confidence === null
       ? "Review recognition before relying on it."
       : `Average OCR confidence: ${Math.round(page.confidence)}%. Check names, dates and amounts.`;
+  if (page.ocrStale)
+    $("ocrStatus").textContent =
+      "The image changed. Retained text and fields need recognition again or explicit review before they return to PDF search.";
   $("barcodeBtn").disabled = false;
   updatePackStatus();
   $("textModal").showModal();
@@ -813,6 +836,13 @@ $("recognizeBtn").onclick = async () => {
         recognitionImage = corrected.toDataURL("image/jpeg", 0.95);
         state.editing.pendingImage = {
           image: recognitionImage,
+          editRecipe: state.editing.editRecipe
+            ? {
+                ...structuredClone(state.editing.editRecipe),
+                rotation:
+                  ((state.editing.editRecipe.rotation || 0) + best.angle) % 360,
+              }
+            : undefined,
           width: corrected.width,
           height: corrected.height,
           paper:
@@ -859,6 +889,15 @@ $("saveTextBtn").onclick = async () => {
   const p = state.editing;
   if (!p || state.ocrBusy) return;
   const text = $("recognizedText").value;
+  if (
+    p.ocrStale &&
+    p.pendingText === undefined &&
+    !$("confirmEditedReview").checked
+  ) {
+    $("ocrStatus").textContent =
+      "Check the review confirmation after comparing this text and its fields with the edited page, or recognize text again.";
+    return;
+  }
   // Do not place stale OCR word boxes into the searchable layer after manual corrections.
   if (p.pendingImage) Object.assign(p, p.pendingImage);
   delete p.pendingImage;
@@ -870,6 +909,7 @@ $("saveTextBtn").onclick = async () => {
     p.words = [];
   p.confidence = p.pendingConfidence ?? p.confidence;
   p.text = text;
+  p.ocrStale = false;
   p.type = $("documentType").value;
   p.fields = $("identifiedFields").value;
   delete p.pendingText;
@@ -970,7 +1010,10 @@ function download(blob, name) {
 }
 $("downloadTextBtn").onclick = () => {
   const text = state.pages
-    .map((p, i) => `Page ${i + 1} — ${p.type}\n${p.fields}\n\n${p.text}`)
+    .map(
+      (p, i) =>
+        `Page ${i + 1} — ${p.type}${p.ocrStale ? " (retained text — needs review after image edit)" : ""}\n${p.fields}\n\n${p.text}`,
+    )
     .join("\n\n-----\n\n");
   download(
     new Blob([text], { type: "text/plain;charset=utf-8" }),
@@ -1047,7 +1090,7 @@ function dbRequest(mode, fn) {
   });
 }
 function persistDraft() {
-  if (!state.db) return Promise.resolve();
+  if (!state.db) return Promise.resolve(false);
   const snapshot = structuredClone({
     pages: state.pages.map(
       ({ pendingWords, pendingText, pendingConfidence, pendingImage, ...p }) =>
@@ -1063,10 +1106,12 @@ function persistDraft() {
     .then(() => {
       $("storageStatus").textContent =
         "Draft saved on this browser. Clear it when finished on a shared device.";
+      return true;
     })
     .catch((err) => {
       $("storageStatus").textContent =
         `Draft could not be saved: ${err.message}. Export now to avoid losing your pages.`;
+      return false;
     });
   return state.persist;
 }
@@ -1115,7 +1160,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) stopCamera();
 });
 window.addEventListener("beforeunload", (e) => {
-  if (state.source) {
+  if (state.source || PageEditor.hasChanges()) {
     e.preventDefault();
     e.returnValue = "";
   }
@@ -1126,6 +1171,7 @@ if ("serviceWorker" in navigator)
       .register("service-worker.js")
       .catch((err) => console.warn("Offline setup failed", err)),
   );
+PageEditor.init();
 restore();
 if (new URLSearchParams(location.search).get("action") === "help")
   $("helpModal").showModal();

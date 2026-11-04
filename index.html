@@ -15,6 +15,8 @@
     <script defer src="scan-core.js"></script>
     <script defer src="offline-ocr.js"></script>
     <script defer src="pdf-text.js"></script>
+    <script defer src="page-model.js"></script>
+    <script defer src="page-editor.js"></script>
     <script defer src="script.js"></script>
   </head>
   <body>
@@ -185,6 +187,58 @@
           ><button id="cancelCropBtn" class="secondary">Cancel</button>
         </div>
       </dialog>
+      <dialog id="pageEditor" aria-labelledby="pageEditTitle">
+        <h2 id="pageEditTitle">Edit saved page</h2>
+        <p id="editorNotice"></p>
+        <img id="editorPreview" alt="Preview of edited page" />
+        <div id="editorCameraPanel" hidden>
+          <video
+            id="editorVideo"
+            autoplay
+            playsinline
+            muted
+            aria-label="Retake camera preview"
+          ></video>
+          <div class="controls">
+            <button id="captureRetakeBtn" disabled>Capture replacement</button
+            ><button id="cancelRetakeBtn" class="secondary">
+              Cancel retake
+            </button>
+          </div>
+        </div>
+        <div class="options">
+          <label
+            >Enhancement<select id="editorEnhancement">
+              <option value="original">Original</option>
+              <option value="color">Color document</option>
+              <option value="gray">Grayscale</option>
+              <option value="bw">Black &amp; white</option>
+            </select></label
+          ><label class="check"
+            ><input id="editorDeskew" type="checkbox" /> Straighten text (up to
+            5°)</label
+          >
+        </div>
+        <div class="controls">
+          <button id="editorCropBtn" class="secondary">Crop / straighten</button
+          ><button id="editorRotateBtn" class="secondary">Rotate 90°</button
+          ><button id="editorRetakeBtn" class="secondary">
+            Retake with camera</button
+          ><button id="editorReplaceLabel" class="secondary">
+            Replace from photo</button
+          ><input id="editorReplaceFile" type="file" accept="image/*" hidden />
+        </div>
+        <p id="editorStatus" role="status" aria-live="polite"></p>
+        <p class="hint">
+          Saving replaces this page in its current position. You can undo the
+          last image edit. Retained text needs another recognition or an
+          explicit review against the edited page.
+        </p>
+        <div class="controls">
+          <button id="savePageEditBtn" disabled>Save changes</button
+          ><button id="cancelPageEditBtn" class="secondary">Cancel</button>
+        </div>
+      </dialog>
       <dialog id="textModal" aria-labelledby="textTitle">
         <h2 id="textTitle">Recognize and identify</h2>
         <p>
@@ -229,6 +283,24 @@
           </button>
         </div>
         <p id="ocrStatus" role="status"></p>
+        <details id="retainedReview" hidden>
+          <summary>Text retained from before the image edit</summary>
+          <label
+            >Previous reviewed text<textarea
+              id="retainedText"
+              rows="5"
+              readonly
+            ></textarea>
+          </label>
+          <p class="hint">
+            This is a reference copy. Compare it with the edited page or
+            recognize text again. It is excluded from PDF search until reviewed.
+          </p>
+        </details>
+        <label id="confirmEditedReviewLabel" class="check" hidden
+          ><input id="confirmEditedReview" type="checkbox" /> I have checked
+          this text and its fields against the edited page.</label
+        >
         <label
           >Recognized text (editable)<textarea
             id="recognizedText"
