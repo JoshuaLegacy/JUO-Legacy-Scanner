@@ -1,283 +1,236 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#4CAF50">
-  <meta charset="UTF-8">
-  <title>JUO Legacy Scanner</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-
-  <style>
-    body {
-      font-family: -apple-system, system-ui, sans-serif;
-      text-align: center;
-      margin: 0;
-      padding: 10px;
-      background-color: #f4f4f9;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    h2 { margin: 10px 0; font-size: 1.2rem; }
-    .controls {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      width: 100%;
-      max-width: 420px;
-      margin-bottom: 10px;
-    }
-    button {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      padding: 12px 5px;
-      font-size: 14px;
-      font-weight: bold;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      cursor: pointer;
-    }
-    #helpBtn { background-color: #5d6d7e; }
-    #downloadPdfBtn { background-color: #2196F3; }
-    .options {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      width: 100%;
-      max-width: 420px;
-      background: white;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 10px;
-      font-size: 13px;
-      box-sizing: border-box;
-    }
-    .option-group { display: flex; flex-direction: column; align-items: flex-start; }
-    .slider-group { grid-column: span 2; width: 100%; }
-    .options select, .options input { width: 100%; padding: 6px; margin-top: 4px; }
-    video {
-      width: 100%;
-      max-width: 420px;
-      height: auto;
-      max-height: 40vh;
-      background-color: #000;
-      border-radius: 8px;
-      object-fit: cover;
-    }
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0; top: 0; width: 100%; height: 100%;
-      background-color: rgba(0,0,0,0.8);
-      padding-top: 20px;
-      overflow-y: auto;
-    }
-    .modal-content {
-      background-color: #fff;
-      margin: auto;
-      padding: 15px;
-      width: 90%;
-      max-width: 450px;
-      border-radius: 12px;
-      position: relative;
-      text-align: left;
-    }
-    .cropper-container-box {
-      width: 100%;
-      height: 50vh;
-      background-color: #eee;
-      margin-bottom: 10px;
-      overflow: hidden;
-    }
-    img { max-width: 100%; display: block; }
-    #status { margin-top: 8px; font-size: 13px; font-weight: bold; color: #27ae60; }
-  </style>
-</head>
-<body>
-
-  <h2>JUO Legacy Scanner</h2>
-
-  <div class="controls">
-    <button id="startCameraBtn">Start Camera</button>
-    <button id="captureBtn">Capture Page</button>
-    <button id="downloadPdfBtn">Download PDF</button>
-    <button id="helpBtn">Guide</button>
-  </div>
-
-  <div class="options">
-    <div class="option-group">
-      <label>Format</label>
-      <select id="pageFormat">
-        <option value="A4" selected>A4</option>
-        <option value="A3">A3</option>
-        <option value="LETTER">Letter</option>
-      </select>
-    </div>
-    <div class="option-group">
-      <label>DPI</label>
-      <select id="dpiSelect">
-        <option value="150">150</option>
-        <option value="300" selected>300</option>
-      </select>
-    </div>
-    <div class="option-group slider-group">
-      <label>Quality: <span id="qualityValue">0.85</span></label>
-      <input type="range" id="qualitySlider" min="0.5" max="1" step="0.05" value="0.85">
-    </div>
-  </div>
-
-  <video id="preview" autoplay playsinline muted></video>
-  <div id="status"></div>
-  <canvas id="captureCanvas" style="display:none;"></canvas>
-
-  <div id="cropModal" class="modal">
-    <div class="modal-content">
-      <h3 style="text-align:center">Adjust Crop</h3>
-      <div class="cropper-container-box">
-        <img id="imageToCrop">
-      </div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#236347" />
+    <meta
+      name="description"
+      content="Private, on-device document scanning with perspective correction and text recognition."
+    />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icon-192.png" />
+    <link rel="stylesheet" href="style.css" />
+    <title>JUO Legacy Scanner</title>
+    <script defer src="scan-core.js"></script>
+    <script defer src="script.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">JUO LEGACY</p>
+          <h1>Document Scanner</h1>
+        </div>
+        <button id="helpBtn" class="secondary">Guide</button>
+      </header>
+      <p>Capture clear pages. Correct their shape. Find the text.</p>
       <div class="controls">
-        <button id="confirmCropBtn">Use Crop</button>
-        <button id="cancelCropBtn" style="background-color: #e74c3c;">Cancel</button>
+        <button id="startCameraBtn">Start camera</button
+        ><button id="stopCameraBtn" class="secondary" disabled>
+          Stop camera</button
+        ><button id="captureBtn" disabled>Capture page</button
+        ><label class="button secondary" for="importFile">Import image</label
+        ><input id="importFile" type="file" accept="image/*" hidden />
       </div>
-    </div>
-  </div>
-
-  <div id="helpModal" class="modal">
-    <div class="modal-content">
-      <span class="closeBtn" style="float:right; cursor:pointer; font-size:24px;">&times;</span>
-      <h3>Usage Guide</h3>
-      <ol>
-            <li><strong>Document Format:</strong> Works best for <strong>A3, A4, or Letter</strong> documents in <strong>portrait or landscape</strong>. You can also scan books. For best results, hold your phone in <strong>portrait orientation</strong>.</li>
-            <li><strong>Position the Document:</strong> Place the document flat on a surface. Align your camera so the LEFT and RIGHT edges of the document fit within the preview.</li>
-            <li><strong>Capture the Page:</strong> Click <strong>Capture Page</strong>. Crop the image as desired and click <strong>Use Crop</strong>.</li>
-            <li><strong>Scan Multi-Page Documents:</strong> If your document has more than one page, click <strong>Capture Page</strong> for each additional page. Repeat until all pages are scanned.</li>
-            <li><strong>Download Your PDF:</strong> Click <strong>Download PDF</strong> to save your scanned document.</li>
-            <li><strong>View Your Scanned Document:</strong> Open the downloaded PDF from your device’s file manager to view your scanned pages.</li>
-      </ol>
-    </div>
-  </div>
-
-  <script>
-    const video = document.getElementById("preview");
-    const canvas = document.getElementById("captureCanvas");
-    const ctx = canvas.getContext("2d");
-    const statusDiv = document.getElementById("status");
-    const qualitySlider = document.getElementById("qualitySlider");
-    const qualityValue = document.getElementById("qualityValue");
-    const cropModal = document.getElementById("cropModal");
-    const imageToCrop = document.getElementById("imageToCrop");
-    
-    let stream = null;
-    let pdf = null;
-    let pageCount = 0;
-    let cropper = null;
-
-    const PAGE_SIZES = { A4: { w: 210, h: 297 }, A3: { w: 297, h: 420 }, LETTER: { w: 216, h: 279 } };
-
-    async function startCamera() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false
-        });
-        video.srcObject = stream;
-      } catch (err) { alert("Camera error: " + err.message); }
-    }
-
-    function capturePage() {
-      if (!stream) { alert("Please start the camera first"); return; }
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      const dataUrl = canvas.toDataURL("image/jpeg");
-      imageToCrop.src = dataUrl;
-      
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      cropModal.style.display = "block";
-
-      // IMPORTANT: Wait for image to load before initializing Cropper
-      imageToCrop.onload = () => {
-        if (cropper) cropper.destroy();
-        cropper = new Cropper(imageToCrop, { 
-          viewMode: 1, 
-          autoCropArea: 1,
-          responsive: true,
-          restore: false
-        });
-      };
-    }
-
-    document.getElementById("confirmCropBtn").onclick = () => {
-      const croppedCanvas = cropper.getCroppedCanvas();
-      handleFinalProcessing(croppedCanvas);
-      cropModal.style.display = "none";
-      startCamera(); 
-    };
-
-    document.getElementById("cancelCropBtn").onclick = () => {
-      cropModal.style.display = "none";
-      startCamera();
-    };
-
-    function handleFinalProcessing(sourceCanvas) {
-      const format = document.getElementById("pageFormat").value;
-      const dpi = parseInt(document.getElementById("dpiSelect").value);
-      const qual = parseFloat(qualitySlider.value);
-
-      // pt = mm * (72 / 25.4)
-      const targetW_pt = PAGE_SIZES[format].w * (72 / 25.4);
-      const targetH_pt = PAGE_SIZES[format].h * (72 / 25.4);
-
-      const imgData = sourceCanvas.toDataURL("image/jpeg", qual);
-
-      if (!pdf) {
-        pdf = new jspdf.jsPDF({ unit: "pt", format: format.toLowerCase() });
-      } else {
-        pdf.addPage(format.toLowerCase());
-      }
-
-      pdf.addImage(imgData, "JPEG", 0, 0, targetW_pt, targetH_pt);
-      pageCount++;
-      statusDiv.innerText = `Page ${pageCount} added.`;
-    }
-
-    document.getElementById("startCameraBtn").onclick = startCamera;
-    document.getElementById("captureBtn").onclick = capturePage;
-    document.getElementById("downloadPdfBtn").onclick = () => {
-      if (pdf) { 
-        pdf.save("Scanner_Export.pdf"); 
-        pdf = null; 
-        pageCount = 0; 
-        statusDiv.innerText = "Downloaded!"; 
-      } else {
-        alert("Capture at least one page first.");
-      }
-    };
-    qualitySlider.oninput = () => qualityValue.innerText = qualitySlider.value;
-    
-    const helpM = document.getElementById("helpModal");
-    document.getElementById("helpBtn").onclick = () => helpM.style.display = "block";
-    document.querySelector(".closeBtn").onclick = () => helpM.style.display = "none";
-    window.onclick = (event) => { if (event.target == helpM) helpM.style.display = "none"; };
-  </script>
-
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js')
-        .then(reg => console.log('Service Worker registered.'))
-        .catch(err => console.error('Service Worker registration failed:', err));
-      });
-    }
-  </script>
-</body>
+      <section aria-label="Camera preview" class="camera">
+        <video id="preview" autoplay playsinline muted></video
+        ><canvas id="liveOverlay" aria-hidden="true"></canvas>
+      </section>
+      <p id="cameraAdvice" role="status">
+        Start the camera or import a photo. Documents stay on this device.
+      </p>
+      <label class="check"
+        ><input id="autoCapture" type="checkbox" /> Capture automatically when a
+        document is steady and clear</label
+      >
+      <section class="options" aria-label="Scan settings">
+        <label
+          >Paper size<select id="pageFormat">
+            <option>A4</option>
+            <option>A3</option>
+            <option value="LETTER">Letter</option>
+          </select></label
+        >
+        <label
+          >Output resolution<select id="dpiSelect">
+            <option value="150">150 DPI</option>
+            <option value="300" selected>300 DPI</option>
+            <option value="400">400 DPI</option>
+          </select></label
+        >
+        <label
+          >Enhancement<select id="enhancement">
+            <option value="original">Original</option>
+            <option value="color" selected>Color document</option>
+            <option value="gray">Grayscale</option>
+            <option value="bw">Black &amp; white</option>
+          </select></label
+        >
+        <label
+          >JPEG quality <output id="qualityValue">0.85</output
+          ><input
+            id="qualitySlider"
+            type="range"
+            min="0.5"
+            max="1"
+            step="0.05"
+            value="0.85"
+        /></label>
+      </section>
+      <p class="hint">
+        DPI limits exported image size; it cannot add missing camera detail.
+        Images are capped at 4 megapixels to protect device memory.
+      </p>
+      <p id="status" role="status" aria-live="polite"></p>
+      <section aria-labelledby="pagesTitle">
+        <h2 id="pagesTitle">Your pages <span id="pageCount">0</span></h2>
+        <div id="pages" class="pages"></div>
+      </section>
+      <section class="export">
+        <label
+          >Document name<input
+            id="filename"
+            value="JUO_Legacy_Scan"
+            maxlength="100"
+        /></label>
+        <div class="controls">
+          <button id="downloadPdfBtn" disabled>Download PDF</button
+          ><button id="downloadTextBtn" class="secondary" disabled>
+            Download text</button
+          ><button id="clearBtn" class="danger" disabled>Clear document</button>
+        </div>
+        <p id="storageStatus" class="hint">
+          Drafts are saved locally on this browser. Clear the document when
+          finished on a shared device.
+        </p>
+      </section>
+      <dialog id="cropModal" aria-labelledby="cropTitle">
+        <h2 id="cropTitle">Adjust document edges</h2>
+        <p>
+          Drag the four corners to the page edges. Use the corner controls below
+          for precise adjustment.
+        </p>
+        <canvas
+          id="cropCanvas"
+          aria-label="Document with adjustable corners"
+        ></canvas>
+        <div class="corner-controls">
+          <label
+            >Corner<select id="cornerSelect">
+              <option value="0">Top left</option>
+              <option value="1">Top right</option>
+              <option value="2">Bottom right</option>
+              <option value="3">Bottom left</option>
+            </select></label
+          ><label
+            >Horizontal
+            <input
+              id="cornerX"
+              type="range"
+              min="0"
+              max="100"
+              step="0.1" /></label
+          ><label
+            >Vertical
+            <input id="cornerY" type="range" min="0" max="100" step="0.1"
+          /></label>
+        </div>
+        <p id="cropAdvice" role="status"></p>
+        <div class="controls">
+          <button id="detectBtn" class="secondary">Detect edges</button
+          ><button id="resetCropBtn" class="secondary">Use full image</button
+          ><button id="rotateCropBtn" class="secondary">Rotate 90°</button
+          ><label class="check"
+            ><input id="deskew" type="checkbox" checked /> Straighten text (up
+            to 5°)</label
+          ><button id="confirmCropBtn">Add page</button
+          ><button id="cancelCropBtn" class="secondary">Cancel</button>
+        </div>
+      </dialog>
+      <dialog id="textModal" aria-labelledby="textTitle">
+        <h2 id="textTitle">Recognize and identify</h2>
+        <p>
+          OCR runs on your device. Its engine and language files download on
+          first use. Review all suggested fields; recognition can make mistakes.
+        </p>
+        <label
+          >Text language<select id="ocrLanguage">
+            <option value="eng">English</option>
+            <option value="fra">French</option>
+            <option value="spa">Spanish</option>
+            <option value="deu">German</option>
+            <option value="por">Portuguese</option>
+          </select></label
+        ><label class="check"
+          ><input id="autoOrient" type="checkbox" checked /> Detect text
+          orientation (checks four rotations; takes longer)</label
+        >
+        <div class="controls">
+          <button id="recognizeBtn">Recognize text</button
+          ><button id="barcodeBtn" class="secondary">Read QR / barcode</button>
+        </div>
+        <p id="ocrStatus" role="status"></p>
+        <label
+          >Recognized text (editable)<textarea
+            id="recognizedText"
+            rows="10"
+          ></textarea></label
+        ><label
+          >Document type<select id="documentType">
+            <option>Document</option>
+            <option>Invoice</option>
+            <option>Receipt</option>
+            <option>Letter</option>
+            <option>ID document</option>
+          </select></label
+        ><label
+          >Suggested fields (review and edit)<textarea
+            id="identifiedFields"
+            rows="5"
+          ></textarea>
+        </label>
+        <div class="controls">
+          <button id="saveTextBtn">Save review</button
+          ><button id="closeTextBtn" class="secondary">Close</button>
+        </div>
+      </dialog>
+      <dialog id="helpModal" aria-labelledby="helpTitle">
+        <h2 id="helpTitle">Scanning guide</h2>
+        <ol>
+          <li>
+            Use a flat, well-lit surface with a contrasting background. Avoid
+            glare.
+          </li>
+          <li>
+            Start the camera and fit all four edges inside the preview, or
+            import an image.
+          </li>
+          <li>
+            Capture, adjust the four corners, rotate if needed, and add the
+            page. Edge detection works best on light paper against a darker
+            surface.
+          </li>
+          <li>
+            Choose an enhancement before adding a page. OCR works best with
+            clear, upright text.
+          </li>
+          <li>
+            Use each page's Text / identify button, review the result, then
+            download a PDF or text file.
+          </li>
+        </ol>
+        <p>
+          PDFs preserve image proportions and include an invisible text layer
+          for supported Latin text recognized by OCR. Other scripts remain
+          visible in the scan and can be exported as UTF-8 text. Page images and
+          reviewed text are saved locally for recovery; clearing browser data
+          removes them. Export before clearing a draft. Offline scanning works
+          after the app has been cached; OCR and PDF export require their
+          engines to have been downloaded successfully.
+        </p>
+        <button id="closeHelpBtn">Close guide</button>
+      </dialog>
+    </main>
+  </body>
 </html>
-

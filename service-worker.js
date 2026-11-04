@@ -1,76 +1,71 @@
-/* JUO Legacy Scanner – Service Worker */
-
-const CACHE_NAME = "juo-legacy-scanner-v2";
-const OFFLINE_URL = "offline.html";
-
-/* Files required for app to work offline */
-const APP_SHELL = [
+/* Keep the app shell offline; optional engines are cached only after successful downloads. */
+"use strict";
+const CACHE_PREFIX = "juo-legacy-scanner-";
+const CACHE_NAME = CACHE_PREFIX + "v3";
+const SHELL = [
   "./",
   "./index.html",
+  "./style.css",
+  "./script.js",
+  "./scan-core.js",
+  "./vendor/jspdf.umd.min.js",
   "./manifest.json",
-  OFFLINE_URL,
-
-  /* Icons */
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-
-  /* External libraries (CDN cached safely) */
-  "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"
+  "./offline.html",
+  "./icon-192.png",
+  "./icon-512.png",
 ];
-
-/* INSTALL */
-self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(APP_SHELL);
-    })
-  );
-  self.skipWaiting();
+self.addEventListener("install", (event) => {
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL)));
 });
-
-/* ACTIVATE */
-self.addEventListener("activate", event => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      );
-    })
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+            .map((key) => caches.delete(key)),
+        ),
+      )
+      .then(() => self.clients.claim()),
   );
-  self.clients.claim();
 });
-
-/* FETCH */
-self.addEventListener("fetch", event => {
-  const request = event.request;
-
-  /* Ignore camera, media streams, and non-GET requests */
-  if (request.method !== "GET" || request.url.startsWith("blob:")) {
+self.addEventListener("fetch", (event) => {
+  const request = event.request,
+    url = new URL(request.url);
+  if (request.method !== "GET" || !["https:", "http:"].includes(url.protocol))
     return;
-  }
-
+  const local = url.origin === self.location.origin;
+  const engine = [
+    "cdnjs.cloudflare.com",
+    "cdn.jsdelivr.net",
+    "tessdata.projectnaptha.com",
+  ].includes(url.hostname);
+  if (!local && !engine) return;
   event.respondWith(
-    caches.match(request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      // Serve HTML and scripts from one installed shell version; the browser checks worker updates.
+      if (request.mode === "navigate") {
+        const shell = await cache.match("./index.html");
+        if (shell) return shell;
+        try {
+          return await fetch(request);
+        } catch {
+          return (await cache.match("./offline.html")) || Response.error();
+        }
       }
-
-      return fetch(request)
-        .then(networkResponse => {
-          return caches.open(CACHE_NAME).then(cache => {
-            cache.put(request, networkResponse.clone());
-            return networkResponse;
-          });
-        })
-        .catch(() => {
-          if (request.mode === "navigate") {
-            return caches.match(OFFLINE_URL);
-          }
-        });
-    })
+      const cached = await cache.match(request);
+      if (cached) return cached;
+      try {
+        const response = await fetch(request);
+        if (response.ok && response.type !== "opaque")
+          await cache.put(request, response.clone()).catch(() => {});
+        return response;
+      } catch {
+        return Response.error();
+      }
+    })(),
   );
 });

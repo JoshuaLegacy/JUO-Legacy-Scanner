@@ -1,16 +1,22 @@
 {
-  "id": "/JUO-Legacy-Scanner/",
+  "id": "./",
   "name": "JUO Legacy Scanner",
   "short_name": "JUO Scanner",
-  "description": "JUO Legacy Scanner is a lightweight document scanning app that uses your device camera to capture pages, optimize quality, and export clean multi-page PDFs directly from your browser.",
-  "start_url": "/JUO-Legacy-Scanner/",
-  "scope": "/JUO-Legacy-Scanner/",
+  "description": "Scan documents privately with perspective correction, page enhancement, on-device OCR and PDF export.",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
-  "background_color": "#f9f9f9",
-  "theme_color": "#4CAF50",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#f4f6f2",
+  "theme_color": "#236347",
   "orientation": "portrait",
-  "categories": ["productivity", "utilities"],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
   "prefer_related_applications": false,
   "icons": [
     {
@@ -31,7 +37,7 @@
       "name": "Start Scan",
       "short_name": "Scan",
       "description": "Open the camera to scan a document",
-      "url": "/JUO-Legacy-Scanner/?action=scan",
+      "url": "./?action=scan",
       "icons": [
         {
           "src": "icon-192.png",
@@ -43,7 +49,7 @@
       "name": "Help Guide",
       "short_name": "Help",
       "description": "View usage guide for JUO Legacy Scanner",
-      "url": "/JUO-Legacy-Scanner/?action=help",
+      "url": "./?action=help",
       "icons": [
         {
           "src": "icon-192.png",
