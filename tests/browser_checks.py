@@ -12,8 +12,12 @@ fixture.save('/tmp/scanner-fixture.png')
 with sync_playwright() as p:
  browser=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH', '/usr/bin/chromium' if Path('/usr/bin/chromium').exists() else None),headless=True,args=['--no-sandbox','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'])
  context=browser.new_context(permissions=['camera'],accept_downloads=True,viewport={'width':390,'height':844})
+ if os.environ.get('SCANNER_ASSET_FIXTURES'):
+  assets=Path(os.environ['SCANNER_ASSET_FIXTURES']);manifest=json.loads((ROOT/'ocr-assets.json').read_text())
+  context.route(manifest['core']['url'],lambda route:route.fulfill(path=str(assets/'core.js'),content_type='application/javascript',headers={'Access-Control-Allow-Origin':'*'}))
+  context.route(manifest['languages']['eng']['url'],lambda route:route.fulfill(path=str(assets/'eng.traineddata'),content_type='application/octet-stream',headers={'Access-Control-Allow-Origin':'*'}))
  page=context.new_page(); errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
- page.goto('http://127.0.0.1:8765');page.wait_for_function('!state.restoring')
+ page.goto(os.environ.get('SCANNER_URL','http://127.0.0.1:8765'));page.wait_for_function('!state.restoring')
  page.locator('#importFile').set_input_files('/tmp/scanner-fixture.png')
  page.wait_for_selector('#cropModal[open]');assert page.locator('#cropAdvice').inner_text().startswith('Page detected.')
  page.locator('#confirmCropBtn').click();page.wait_for_function('state.pages.length===1 && !state.busy')

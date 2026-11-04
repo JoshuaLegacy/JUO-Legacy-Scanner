@@ -21,7 +21,10 @@ jobs:
           python-version: "3.12"
       - run: pip install -r tests/requirements.txt
       - run: python -m playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils fonts-dejavu-core
       - name: Browser integration checks
         run: |
           python -m http.server 8765 --bind 127.0.0.1 > /tmp/scanner-server.log 2>&1 &
-          python tests/browser_checks.py
+          python tests/fetch_ocr_fixtures.py
+          SCANNER_TEST_OCR=1 SCANNER_ASSET_FIXTURES=/tmp/scanner-ocr-fixtures python tests/browser_checks.py
+          SCANNER_TEST_OFFLINE_OCR=1 SCANNER_ASSET_FIXTURES=/tmp/scanner-ocr-fixtures python tests/followup_checks.py
