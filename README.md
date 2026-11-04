@@ -2,6 +2,10 @@
 
 A static, browser-based document scanner by Joshua Orizu. Camera images, recognized text and reviewed fields are processed on the device. No document upload service or account is required.
 
+## User guide
+
+Read the complete [User Guide](USER_GUIDE.md) for the current capture, editing/retake, undo, OCR review, language downloads, barcode, export and recovery workflows. In the app, select **Guide** for the offline instructions. The sections below also document technical limits and development checks.
+
 ## Scan a document
 
 1. Open the app over HTTPS (or localhost). Start the rear camera, or import a JPEG/PNG/WebP image. Allow camera access when prompted.

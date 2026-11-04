@@ -329,43 +329,558 @@
         </div>
       </dialog>
       <dialog id="helpModal" aria-labelledby="helpTitle">
-        <h2 id="helpTitle">Scanning guide</h2>
-        <ol>
-          <li>
-            Use a flat, well-lit surface with a contrasting background. Avoid
-            glare.
-          </li>
-          <li>
-            Start the camera and fit all four edges inside the preview, or
-            import an image.
-          </li>
-          <li>
-            Capture, adjust the four corners, rotate if needed, and add the
-            page. Edge detection checks light and dark regions and page
-            boundaries; inspect the corners, especially on busy backgrounds.
-          </li>
-          <li>
-            Choose an enhancement before adding a page. OCR works best with
-            clear, upright text.
-          </li>
-          <li>
-            Use each page's Text / identify button, review the result, then
-            download a PDF or text file.
-          </li>
-        </ol>
-        <p>
-          PDFs preserve image proportions and carry Unicode search text,
-          including your corrections. Corrected text uses approximate line
-          positions; it does not change the visible page image. Search and
-          selection support varies by PDF reader. UTF-8 text export is also
-          available. Page images and reviewed text are saved locally for
-          recovery; clearing browser data removes them. Export before clearing a
-          draft. Offline scanning and barcode recognition work after the app is
-          cached. Download the selected OCR language first and check its
-          readiness before going offline. Browser storage eviction can remove
-          drafts or downloads.
+        <div class="guide-header">
+          <h2 id="helpTitle">User guide</h2>
+          <button id="closeHelpBtn" class="secondary">Close guide</button>
+        </div>
+        <p class="hint">
+          Version 3.2.1 · Updated 4 November 2026. These instructions are
+          available offline after the app is cached.
         </p>
-        <button id="closeHelpBtn">Close guide</button>
+        <section aria-label="Quick start">
+          <h3>1. Scan your first document</h3>
+          <ol>
+            <li>
+              Open the scanner in a current browser. Use the HTTPS site and
+              allow camera access when prompted.
+            </li>
+            <li>
+              Choose <strong>Paper size</strong>,
+              <strong>Output resolution</strong>, <strong>Enhancement</strong>,
+              and <strong>JPEG quality</strong> before capturing. These settings
+              apply when you add the page.
+            </li>
+            <li>
+              Put the document on a flat surface in even light. A contrasting
+              background helps the scanner find its edges. Keep all four page
+              corners visible and avoid glare, fingers, and heavy shadows.
+            </li>
+            <li>
+              Select <strong>Start camera</strong>, then
+              <strong>Capture page</strong>. Alternatively, choose
+              <strong>Import image</strong> and select a JPEG, PNG, or WebP
+              photo.
+            </li>
+            <li>
+              In <strong>Adjust document edges</strong>, inspect the outline.
+              Drag each corner to the document edge, or select a corner and use
+              the <strong>Horizontal</strong> and
+              <strong>Vertical</strong> sliders. Use
+              <strong>Detect edges</strong>, <strong>Use full image</strong>, or
+              <strong>Rotate 90°</strong> if needed; check the corners again
+              after rotating.
+            </li>
+            <li>
+              Leave <strong>Straighten text (up to 5°)</strong> checked to
+              correct a small tilt, or uncheck it if the result looks worse.
+              Select <strong>Add page</strong> when ready, or
+              <strong>Cancel</strong> to discard this capture.
+            </li>
+            <li>
+              Check the saved thumbnail. Select
+              <strong>Start camera</strong> again for the next page. Capture
+              pauses the camera while you crop; <strong>Add page</strong> still
+              needs your confirmation.
+            </li>
+            <li>
+              Name the document and select <strong>Download PDF</strong>. To
+              make the PDF searchable, recognize and review its text first as
+              described below.
+            </li>
+          </ol>
+        </section>
+        <details class="guide-section">
+          <summary>2. Capture controls and quality advice</summary>
+          <p>
+            <strong>Stop camera</strong> releases the camera. The scanner also
+            stops camera access when you leave the page or switch away from it.
+            Start it again when you return.
+          </p>
+          <p>
+            Optional
+            <strong
+              >Capture automatically when a document is steady and clear</strong
+            >
+            waits for a detected page to stay steady and pass the quality
+            checks, then opens the crop screen. It does not automatically accept
+            the crop or save the page. If it does not trigger, use
+            <strong>Capture page</strong> manually.
+          </p>
+          <p>
+            The preview can warn about low detail, darkness, low contrast,
+            possible glare, or uneven lighting. Hold the phone steady, clean the
+            lens, add diffuse light, or change the light&#39;s angle. Detection
+            checks light and dark page regions and page boundaries, but
+            difficult backgrounds may still need manual corners. Warnings and
+            outlines are guidance: inspect the image yourself, especially names,
+            small print, and faint text.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>3. Paper, resolution, and enhancement</summary>
+          <table>
+            <thead>
+              <tr>
+                <th>Setting</th>
+                <th>How to choose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Paper size</strong></td>
+                <td>
+                  A4, A3, or Letter. Landscape images use landscape pages. The
+                  scanner preserves image proportions and centers the scan;
+                  unused paper stays blank.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Output resolution</strong></td>
+                <td>
+                  150 DPI for smaller files, 300 DPI for a typical document, or
+                  400 DPI when the source has enough detail. Higher DPI cannot
+                  recover missing detail. Images are never enlarged just to
+                  reach the selected DPI, and processing/output is capped at 4
+                  megapixels.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Original</strong></td>
+                <td>
+                  Keeps the image&#39;s captured appearance. Useful for
+                  photographs or documents whose colors matter.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Color document</strong></td>
+                <td>
+                  Adjusts local brightness and contrast while retaining color.
+                  Useful for everyday paperwork.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Grayscale</strong></td>
+                <td>
+                  Removes color and adjusts the document&#39;s local brightness.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Black &amp; white</strong></td>
+                <td>
+                  Converts the page to black and white. Useful for clear text;
+                  inspect faint text and stamps because they can disappear.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>JPEG quality</strong></td>
+                <td>
+                  Choose 0.5–1.0. Higher values usually give larger files. Start
+                  at 0.85 and check whether small text remains readable.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            Imported images must be at most 30 MB and 40 megapixels. Large files
+            can still strain a phone&#39;s memory. Export long documents in
+            batches rather than assuming an unlimited page count.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>4. Correct a curved book page</summary>
+          <p>
+            Scan one book page at a time. In the crop screen, open
+            <strong>Flatten a curved book page</strong> and enable
+            <strong>Apply guided book correction</strong>. Adjust
+            <strong>Top edge curve</strong> and
+            <strong>Bottom edge curve</strong> while watching the preview. Aim
+            for straight text rows, then add or accept the page.
+          </p>
+          <p>
+            Closing the controls keeps an enabled correction; uncheck
+            <strong>Apply guided book correction</strong> to disable it. This is
+            guided correction for smooth vertical bowing. It cannot reveal
+            hidden text, separate two facing pages automatically, or correct
+            every form of spine distortion. Flatten the book gently and keep the
+            page well lit for the best starting image.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>5. Manage and edit saved pages</summary>
+          <p>Each thumbnail has these actions:</p>
+          <ul>
+            <li>
+              <strong>Edit / Retake:</strong> opens a large preview for editing
+              the selected page.
+            </li>
+            <li>
+              <strong>Text / identify:</strong> opens text recognition,
+              identification suggestions, and barcode reading.
+            </li>
+            <li>
+              <strong>Move earlier / Move later:</strong> changes the page&#39;s
+              position in the PDF and text download.
+            </li>
+            <li>
+              <strong>Rotate:</strong> opens an edited preview; choose
+              <strong>Save changes</strong> to apply it.
+            </li>
+            <li>
+              <strong>Undo edit:</strong> restores the image, settings, and
+              reviewed text from before the last saved image edit. It becomes
+              available after an image edit is saved.
+            </li>
+            <li>
+              <strong>Delete:</strong> removes that page after confirmation.
+              Export a copy first if you need it.
+            </li>
+          </ul>
+          <p>
+            Inside <strong>Edit / Retake</strong>, use
+            <strong>Crop / straighten</strong>, <strong>Rotate 90°</strong>, the
+            enhancement selector, and the text-straightening checkbox. Changes
+            are temporary until you choose <strong>Save changes</strong>.
+            <strong>Cancel</strong> keeps the saved page; if you changed the
+            preview, you will be asked whether to discard those changes.
+          </p>
+          <p>
+            New pages retain a source image so different enhancement choices can
+            be tried without repeatedly processing the previous enhanced result.
+            Older saved pages remain editable, but original colors, cropped
+            content, or detail already removed cannot be recovered. The editor
+            displays a notice for those pages.
+          </p>
+          <p>
+            There is one undo version per page, not a full edit history. A later
+            saved image edit replaces it. Undo also restores the earlier text
+            and fields, so later text reviews on that page will be replaced.
+            Undo survives a reload only if the local draft was saved
+            successfully. <strong>Undo edit</strong> does not undo a page
+            deletion or <strong>Clear document</strong>.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>6. Retake or replace one page</summary>
+          <ol>
+            <li>
+              Choose <strong>Edit / Retake</strong> on the page to replace.
+            </li>
+            <li>
+              Select <strong>Retake with camera</strong>, align the document,
+              and select <strong>Capture replacement</strong>.
+              <strong>Cancel retake</strong> closes the camera without changing
+              the saved page.
+            </li>
+            <li>
+              Alternatively, select <strong>Replace from photo</strong> and
+              choose another image.
+            </li>
+            <li>
+              Check the replacement preview. Adjust its crop or enhancement if
+              needed.
+            </li>
+            <li>
+              Choose <strong>Save changes</strong> to replace the selected page
+              in its existing position. No extra page is appended.
+              <strong>Cancel</strong> discards the temporary replacement.
+            </li>
+          </ol>
+          <p>
+            Denied camera permission or an invalid replacement file leaves the
+            saved page intact. You can try again or use
+            <strong>Replace from photo</strong>. After saving,
+            <strong>Undo edit</strong> restores the previous version.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>7. Recognize text and make PDFs searchable</summary>
+          <ol>
+            <li>Select <strong>Text / identify</strong> on a saved page.</li>
+            <li>
+              Choose <strong>Text language</strong>. Fourteen languages are
+              available: English, French, Spanish, German, Portuguese, Arabic,
+              Hindi, simplified Chinese, Russian, Ukrainian, Japanese, Korean,
+              Yoruba, and Italian.
+            </li>
+            <li>
+              If needed, download the language while online. See the offline
+              instructions below.
+            </li>
+            <li>
+              Optional <strong>Detect text orientation</strong> checks four
+              rotations and corrects the page when recognition improves. Leave
+              it on for sideways text; turn it off to save time on a clear,
+              upright page.
+            </li>
+            <li>
+              Select <strong>Recognize text</strong>. Use
+              <strong>Cancel operation</strong> if you want to stop.
+            </li>
+            <li>
+              Read and correct <strong>Recognized text</strong>,
+              <strong>Document type</strong>, and
+              <strong>Suggested fields</strong>. Pay particular attention to
+              names, dates, document numbers, and amounts. Average confidence is
+              a hint, not a guarantee.
+            </li>
+            <li>
+              Select <strong>Save review</strong> to accept the result. Closing
+              without saving does not accept the new recognition result.
+            </li>
+            <li>Repeat for other pages, then download the PDF or text file.</li>
+          </ol>
+          <p>
+            Reviewed text and manual corrections can be included in PDF search.
+            Corrected text may have approximate selection positions, and the
+            visible scan is not rewritten. Search/selection behavior varies by
+            PDF reader, especially for right-to-left text.
+            <strong>Download text</strong> provides a UTF-8 copy when you need
+            the text separately.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>8. Review text after an image edit</summary>
+          <p>
+            Saving an image edit or retake removes the old OCR word positions,
+            because they may no longer match the image. Previously reviewed text
+            and fields are retained, and the thumbnail shows
+            <strong>text needs review</strong>. Open
+            <strong>Text / identify</strong> to see the reference copy under
+            <strong>Text retained from before the image edit</strong>.
+          </p>
+          <p>Choose one of these routes:</p>
+          <ul>
+            <li>
+              Run <strong>Recognize text</strong> again, review the fresh
+              result, and select <strong>Save review</strong>.
+            </li>
+            <li>
+              Compare and correct the retained text and fields against the
+              edited page. Check
+              <strong
+                >I have checked this text and its fields against the edited
+                page</strong
+              >, then select <strong>Save review</strong>.
+            </li>
+          </ul>
+          <p>
+            Until that review is saved, retained text is excluded from PDF
+            search. A text download labels it as retained text needing review.
+            The reference copy is available for comparison; it is not
+            automatically accepted as current text.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>9. Document identification and suggested fields</summary>
+          <p>
+            The app suggests Document, Invoice, Receipt, Letter, ID document,
+            Bank statement, Business card, or Form. Depending on the text, it
+            may suggest dates, totals, invoice numbers, tax, due dates,
+            email/phone/website details, ID labels, or statement balances.
+            Statement account suggestions show the last four digits where
+            detected.
+          </p>
+          <p>
+            These are editable suggestions based on text cues, primarily English
+            field labels. Choosing an OCR language does not mean identification
+            supports every document in that language. Check the category and
+            every extracted value. Identification does not authenticate
+            documents or verify a person&#39;s identity.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>10. Read a QR code or barcode</summary>
+          <p>
+            Open <strong>Text / identify</strong> and select
+            <strong>Read QR / barcode</strong>. The scanner uses browser support
+            where available and a bundled fallback otherwise. It can read QR and
+            common barcode formats from the page image, including when the app
+            is cached offline.
+          </p>
+          <p>
+            Review the decoded value under <strong>Suggested fields</strong>,
+            then select <strong>Save review</strong> if you want to keep it.
+            Links are not opened automatically. For a missing code, try a
+            sharper, closer image with the entire code and a clear border
+            visible. Do not assume that every code on a page will be listed.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>11. Prepare for offline scanning and OCR</summary>
+          <ol>
+            <li>
+              Open the app while online so its scanning, editing, export,
+              barcode, and Guide files can be cached.
+            </li>
+            <li>
+              Open <strong>Text / identify</strong>, select a language, and
+              choose <strong>Download language for offline use</strong>.
+              Recognition can also prepare a missing language automatically
+              while online.
+            </li>
+            <li>
+              Wait for
+              <strong>Language downloaded and ready for offline OCR</strong>.
+              The shared engine plus English model is about 7.7 MB; other
+              language sizes vary. The app checks downloads before reporting
+              readiness.
+            </li>
+            <li>
+              Before relying on offline work, turn off the connection, reopen
+              the app, and try the workflow you need. Camera access and storage
+              still depend on the browser.
+            </li>
+          </ol>
+          <p>
+            <strong>Cancel operation</strong> stops a download or recognition.
+            Completed shared assets may remain for a retry.
+            <strong>Remove downloaded language</strong> removes the selected
+            model without deleting scanned pages; a shared engine may remain for
+            other languages. Select and download any additional languages
+            separately.
+          </p>
+          <p>
+            Clearing browser data or storage eviction can remove downloaded
+            languages. Check readiness again before a trip or other offline
+            session. If a language is missing while offline, reconnect and
+            download it before recognizing text.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>12. Export, draft recovery, and privacy</summary>
+          <p>
+            Set <strong>Document name</strong> before downloading.
+            <strong>Download PDF</strong> exports the scanned pages in their
+            current order, with eligible reviewed search text.
+            <strong>Download text</strong> exports available page text and
+            fields in UTF-8. It becomes available when at least one page has
+            saved text; barcode values or fields alone do not enable it, so copy
+            those values from Suggested fields if needed. Downloading keeps the
+            current draft so you can continue working; it does not reset the
+            document.
+          </p>
+          <p>
+            The current draft, retained source images, and one undo version per
+            page are saved locally in this browser when storage succeeds.
+            Reopening the app restores that draft. This is one current draft,
+            not a library of separate projects. Private browsing, browser
+            cleanup, storage limits, or eviction can remove it.
+          </p>
+          <p>
+            If the app says a draft or edit could not be saved, the current
+            pages may exist only in memory. Export immediately before closing
+            the tab. Keep downloaded copies of important documents rather than
+            relying on recovery alone.
+          </p>
+          <p>
+            Camera images, OCR, editing, and identification run on the device.
+            No document upload or account is required. Initial app, engine, and
+            language downloads still use an internet connection. On a shared
+            device, export what you need and use
+            <strong>Clear document</strong> to remove the current pages,
+            reviewed text, sources, and undo records from the active draft.
+            Clearing does not delete PDFs/text files already downloaded to your
+            device, and removing an OCR language is a separate action.
+          </p>
+        </details>
+        <details class="guide-section">
+          <summary>13. Troubleshooting and updates</summary>
+          <table>
+            <thead>
+              <tr>
+                <th>Problem</th>
+                <th>What to do</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Camera does not open</td>
+                <td>
+                  Use the HTTPS site, allow camera access in browser settings,
+                  and close other apps using the camera. Try Import image or
+                  Replace from photo if camera access is unavailable.
+                </td>
+              </tr>
+              <tr>
+                <td>Camera stopped after switching apps</td>
+                <td>
+                  Select Start camera or Retake with camera again. Camera
+                  streams stop when the scanner is hidden.
+                </td>
+              </tr>
+              <tr>
+                <td>Automatic capture does not trigger</td>
+                <td>
+                  Hold steady, improve light/background contrast, or select
+                  Capture page manually.
+                </td>
+              </tr>
+              <tr>
+                <td>Page edges are wrong</td>
+                <td>
+                  Drag the four corners, use their sliders, or choose Use full
+                  image and crop manually.
+                </td>
+              </tr>
+              <tr>
+                <td>Text or stamps disappeared</td>
+                <td>
+                  In Edit / Retake, try Original or Color document. Older pages
+                  may require a retake if the original detail was not retained.
+                </td>
+              </tr>
+              <tr>
+                <td>Sideways or inaccurate OCR</td>
+                <td>
+                  Check the language, enable Detect text orientation,
+                  rotate/retake if needed, and review the result. Higher DPI
+                  alone cannot fix blur.
+                </td>
+              </tr>
+              <tr>
+                <td>Edited page is no longer searchable</td>
+                <td>
+                  Open Text / identify and recognize again, or explicitly
+                  confirm and save the reviewed text against the edited page.
+                </td>
+              </tr>
+              <tr>
+                <td>Offline OCR fails</td>
+                <td>
+                  Check that the selected language is downloaded and ready.
+                  Reconnect and retry the download if it is missing, incomplete,
+                  or was removed.
+                </td>
+              </tr>
+              <tr>
+                <td>PDF is too large or the app slows down</td>
+                <td>
+                  Use 150 DPI or lower JPEG quality for new captures, and export
+                  long documents in smaller batches.
+                </td>
+              </tr>
+              <tr>
+                <td>Local recovery failed</td>
+                <td>
+                  Export the current in-memory document before closing. Free
+                  browser storage if needed, but export before clearing site
+                  data.
+                </td>
+              </tr>
+              <tr>
+                <td>New features or the updated Guide do not appear</td>
+                <td>
+                  Reconnect, close all scanner tabs/windows, then reopen the
+                  site so the cached app can update. Export unsaved work first.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            Review real results on your device: camera focus, memory limits, PDF
+            readers, and browser permissions differ between phones.
+          </p>
+        </details>
       </dialog>
     </main>
   </body>
