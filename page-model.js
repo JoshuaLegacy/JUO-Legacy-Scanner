@@ -70,6 +70,9 @@
           format: paperFormat(page),
           dpi: page.dpi || 300,
           quality: page.quality || 0.85,
+          brightness: 0,
+          contrast: 0,
+          maxPixels: 4000000,
         };
   }
   const api = { snapshot, commit, undo, paperFormat, recipe };

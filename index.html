@@ -17,6 +17,8 @@
     <script defer src="pdf-text.js"></script>
     <script defer src="page-model.js"></script>
     <script defer src="page-editor.js"></script>
+    <script defer src="camera-controls.js"></script>
+    <script defer src="image-export.js"></script>
     <script defer src="script.js"></script>
   </head>
   <body>
@@ -48,7 +50,23 @@
         ><input id="autoCapture" type="checkbox" /> Capture automatically when a
         document is steady and clear</label
       >
+      <label class="check"
+        ><input id="autoCrop" type="checkbox" /> Automatically crop and add
+        confidently detected pages</label
+      >
       <section class="options" aria-label="Scan settings">
+        <label
+          >Camera resolution<select id="cameraResolution" disabled>
+            <option value="auto">Start camera to see available modes</option>
+          </select></label
+        ><label
+          >Processing detail limit<select id="detailLimit">
+            <option value="4">4 MP (balanced)</option>
+            <option value="8">8 MP</option>
+            <option value="12">12 MP</option>
+            <option value="24">24 MP (uses more memory)</option>
+          </select></label
+        >
         <label
           >Paper size<select id="pageFormat">
             <option>A4</option>
@@ -58,15 +76,18 @@
         >
         <label
           >Output resolution<select id="dpiSelect">
+            <option value="0" selected>Source detail (no DPI resize)</option>
             <option value="150">150 DPI</option>
-            <option value="300" selected>300 DPI</option>
+            <option value="300">300 DPI</option>
             <option value="400">400 DPI</option>
           </select></label
         >
         <label
           >Enhancement<select id="enhancement">
-            <option value="original">Original</option>
-            <option value="color" selected>Color document</option>
+            <option value="original" selected>
+              Original / preserve colors
+            </option>
+            <option value="color">Color document (gentle contrast)</option>
             <option value="gray">Grayscale</option>
             <option value="bw">Black &amp; white</option>
           </select></label
@@ -82,10 +103,36 @@
             value="0.85"
         /></label>
       </section>
-      <p class="hint">
-        DPI limits exported image size; it cannot add missing camera detail.
-        Images are capped at 4 megapixels to protect device memory.
+      <p id="cameraResolutionStatus" class="hint" role="status">
+        Camera modes depend on what your browser exposes, not the megapixels
+        printed on the phone.
       </p>
+      <p class="hint">
+        Original preserves captured colors. Higher processing detail retains
+        more pixels but uses more memory; it cannot create missing camera
+        detail. For full pixel detail, keep Source detail selected.
+      </p>
+      <div class="options">
+        <label
+          >Brightness <output id="brightnessValue">0</output
+          ><input
+            id="brightness"
+            type="range"
+            min="-40"
+            max="40"
+            step="1"
+            value="0" /></label
+        ><label
+          >Contrast <output id="contrastValue">0</output
+          ><input
+            id="contrast"
+            type="range"
+            min="-40"
+            max="60"
+            step="1"
+            value="0"
+        /></label>
+      </div>
       <p id="status" role="status" aria-live="polite"></p>
       <section aria-labelledby="pagesTitle">
         <h2 id="pagesTitle">Your pages <span id="pageCount">0</span></h2>
@@ -98,6 +145,23 @@
             value="JUO_Legacy_Scan"
             maxlength="100"
         /></label>
+        <div class="options">
+          <label
+            >Export format<select id="exportFormat">
+              <option value="pdf">PDF document</option>
+              <option value="jpeg">JPEG image</option>
+              <option value="png">PNG image</option>
+            </select></label
+          ><label
+            >Export pages<select id="exportPages">
+              <option value="all">All pages</option>
+            </select></label
+          >
+        </div>
+        <p id="imageExportHint" class="hint">
+          PDF keeps the pages together. Multiple JPEG/PNG images download in one
+          ZIP file.
+        </p>
         <div class="controls">
           <button id="downloadPdfBtn" disabled>Download PDF</button
           ><button id="downloadTextBtn" class="secondary" disabled>
@@ -178,6 +242,7 @@
         <p id="cropAdvice" role="status"></p>
         <div class="controls">
           <button id="detectBtn" class="secondary">Detect edges</button
+          ><button id="applyAutoCropBtn" class="secondary">Auto crop</button
           ><button id="resetCropBtn" class="secondary">Use full image</button
           ><button id="rotateCropBtn" class="secondary">Rotate 90°</button
           ><label class="check"
@@ -192,6 +257,12 @@
         <p id="editorNotice"></p>
         <img id="editorPreview" alt="Preview of edited page" />
         <div id="editorCameraPanel" hidden>
+          <label
+            >Retake resolution<select id="editorCameraResolution" disabled>
+              <option value="auto">Auto / balanced</option>
+            </select></label
+          >
+          <p id="editorResolutionStatus" class="hint" role="status"></p>
           <video
             id="editorVideo"
             autoplay
@@ -207,6 +278,37 @@
           </div>
         </div>
         <div class="options">
+          <label
+            >Processing detail<select id="editorDetailLimit">
+              <option value="4">4 MP</option>
+              <option value="8">8 MP</option>
+              <option value="12">12 MP</option>
+              <option value="24">24 MP</option>
+            </select></label
+          ><label
+            >Output resolution<select id="editorDpi">
+              <option value="0">Source detail</option>
+              <option value="150">150 DPI</option>
+              <option value="300">300 DPI</option>
+              <option value="400">400 DPI</option>
+            </select></label
+          ><label
+            >Brightness <output id="editorBrightnessValue">0</output
+            ><input
+              id="editorBrightness"
+              type="range"
+              min="-40"
+              max="40"
+              value="0" /></label
+          ><label
+            >Contrast <output id="editorContrastValue">0</output
+            ><input
+              id="editorContrast"
+              type="range"
+              min="-40"
+              max="60"
+              value="0"
+          /></label>
           <label
             >Enhancement<select id="editorEnhancement">
               <option value="original">Original</option>
@@ -334,8 +436,8 @@
           <button id="closeHelpBtn" class="secondary">Close guide</button>
         </div>
         <p class="hint">
-          Version 3.2.1 · Updated 4 November 2026. These instructions are
-          available offline after the app is cached.
+          Version 3.3.0 · Updated 5 November 2026. Instructions are available
+          offline once cached.
         </p>
         <section aria-label="Quick start">
           <h3>1. Scan your first document</h3>
@@ -346,9 +448,12 @@
             </li>
             <li>
               Choose <strong>Paper size</strong>,
+              <strong>Processing detail limit</strong>,
               <strong>Output resolution</strong>, <strong>Enhancement</strong>,
-              and <strong>JPEG quality</strong> before capturing. These settings
-              apply when you add the page.
+              and <strong>JPEG quality</strong> before capturing.
+              <strong>Original / preserve colors</strong> is the default. Leave
+              brightness and contrast at zero for an unchanged starting image.
+              These settings apply when you add the page.
             </li>
             <li>
               Put the document on a flat surface in even light. A contrasting
@@ -356,7 +461,10 @@
               corners visible and avoid glare, fingers, and heavy shadows.
             </li>
             <li>
-              Select <strong>Start camera</strong>, then
+              Select <strong>Start camera</strong>. Once ready,
+              <strong>Camera resolution</strong> lists the modes the browser
+              reports. Choose a higher supported mode if needed, check the
+              actual resolution status, then select
               <strong>Capture page</strong>. Alternatively, choose
               <strong>Import image</strong> and select a JPEG, PNG, or WebP
               photo.
@@ -383,7 +491,9 @@
               needs your confirmation.
             </li>
             <li>
-              Name the document and select <strong>Download PDF</strong>. To
+              Name the document, choose <strong>Export format</strong> (PDF,
+              JPEG, or PNG) and <strong>Export pages</strong>, then select the
+              download button. For PDF, select <strong>Download PDF</strong>. To
               make the PDF searchable, recognize and review its text first as
               described below.
             </li>
@@ -407,13 +517,28 @@
             <strong>Capture page</strong> manually.
           </p>
           <p>
+            <strong
+              >Automatically crop and add confidently detected pages</strong
+            >
+            is a separate option. When enabled, a strong boundary match skips
+            manual cropping and adds the page. Uncertain outlines stay on the
+            crop screen for review. You can also select
+            <strong>Auto crop</strong> in that screen to detect and accept a
+            confident boundary in one step. Auto-capture controls when a
+            photograph is taken; auto-crop controls whether its boundary is
+            accepted. Retained source images let you correct a crop later
+            through Edit / Retake.
+          </p>
+          <p>
             The preview can warn about low detail, darkness, low contrast,
             possible glare, or uneven lighting. Hold the phone steady, clean the
             lens, add diffuse light, or change the light&#39;s angle. Detection
-            checks light and dark page regions and page boundaries, but
-            difficult backgrounds may still need manual corners. Warnings and
-            outlines are guidance: inspect the image yourself, especially names,
-            small print, and faint text.
+            checks matching color outlines, light and dark page regions, and
+            page boundaries. Matching hues across a colored cover and its footer
+            are grouped so a white printed panel is less likely to truncate the
+            page. However, difficult backgrounds may still need manual corners.
+            Warnings and outlines are guidance: inspect the image yourself,
+            especially names, small print, and faint text.
           </p>
         </details>
         <details class="guide-section">
@@ -429,53 +554,80 @@
               <tr>
                 <td><strong>Paper size</strong></td>
                 <td>
-                  A4, A3, or Letter. Landscape images use landscape pages. The
-                  scanner preserves image proportions and centers the scan;
-                  unused paper stays blank.
+                  A4, A3, or Letter. Landscape images use landscape pages.
+                  Proportions are preserved and unused paper stays blank.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Camera resolution</strong></td>
+                <td>
+                  Available after starting the camera. Modes come from
+                  browser-reported capabilities. Where supported, the app
+                  requests a high-resolution still photo; otherwise it uses the
+                  actual video frame. The status reports the returned
+                  dimensions. Sensor megapixels advertised on the phone may not
+                  be available to the browser.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Processing detail limit</strong></td>
+                <td>
+                  4 MP is the balanced default; 8, 12, and 24 MP retain more
+                  source detail and use more memory. A higher camera choice
+                  raises this limit as needed, up to 24 MP. It never creates
+                  pixels missing from the camera or imported source.
                 </td>
               </tr>
               <tr>
                 <td><strong>Output resolution</strong></td>
                 <td>
-                  150 DPI for smaller files, 300 DPI for a typical document, or
-                  400 DPI when the source has enough detail. Higher DPI cannot
-                  recover missing detail. Images are never enlarged just to
-                  reach the selected DPI, and processing/output is capped at 4
-                  megapixels.
+                  <strong>Source detail</strong> avoids an extra DPI resize.
+                  Optional 150, 300, or 400 DPI limits pixel size relative to
+                  the selected paper. Higher DPI cannot recover missing detail.
+                  Images are never enlarged, and the selected processing limit
+                  still applies.
                 </td>
               </tr>
               <tr>
-                <td><strong>Original</strong></td>
+                <td><strong>Original / preserve colors</strong></td>
                 <td>
-                  Keeps the image&#39;s captured appearance. Useful for
-                  photographs or documents whose colors matter.
+                  The default, recommended for colored covers and photographs.
+                  With brightness and contrast at zero, no enhancement whitening
+                  is applied.
                 </td>
               </tr>
               <tr>
                 <td><strong>Color document</strong></td>
                 <td>
-                  Adjusts local brightness and contrast while retaining color.
-                  Useful for everyday paperwork.
+                  Gentle global contrast that keeps dark printed colors dark. It
+                  no longer brightens each local region toward white.
                 </td>
               </tr>
               <tr>
                 <td><strong>Grayscale</strong></td>
-                <td>
-                  Removes color and adjusts the document&#39;s local brightness.
-                </td>
+                <td>Removes color and applies gentle contrast.</td>
               </tr>
               <tr>
                 <td><strong>Black &amp; white</strong></td>
                 <td>
-                  Converts the page to black and white. Useful for clear text;
-                  inspect faint text and stamps because they can disappear.
+                  Adaptive black/white conversion for clear text. Inspect faint
+                  text, colored lettering and stamps because they can disappear.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Brightness / Contrast</strong></td>
+                <td>
+                  Start at zero. Lower brightness if a scan looks too light, or
+                  add a little contrast if needed. Saved-page editing provides a
+                  preview before you accept the result.
                 </td>
               </tr>
               <tr>
                 <td><strong>JPEG quality</strong></td>
                 <td>
                   Choose 0.5–1.0. Higher values usually give larger files. Start
-                  at 0.85 and check whether small text remains readable.
+                  at 0.85 and inspect small text. This does not change a PNG
+                  into a JPEG; image export uses the selected file type.
                 </td>
               </tr>
             </tbody>
@@ -537,11 +689,18 @@
           </ul>
           <p>
             Inside <strong>Edit / Retake</strong>, use
-            <strong>Crop / straighten</strong>, <strong>Rotate 90°</strong>, the
-            enhancement selector, and the text-straightening checkbox. Changes
-            are temporary until you choose <strong>Save changes</strong>.
-            <strong>Cancel</strong> keeps the saved page; if you changed the
-            preview, you will be asked whether to discard those changes.
+            <strong>Crop / straighten</strong>, <strong>Rotate 90°</strong>,
+            enhancement, brightness/contrast,
+            processing-detail/output-resolution choices, and the
+            text-straightening checkbox. Changes are temporary until you choose
+            <strong>Save changes</strong>. <strong>Cancel</strong> keeps the
+            saved page; if you changed the preview, you will be asked whether to
+            discard those changes.
+          </p>
+          <p>
+            The editor reports the retained source dimensions. A higher
+            processing limit cannot restore pixels already missing from an older
+            source; retake at a higher supported camera mode when needed.
           </p>
           <p>
             New pages retain a source image so different enhancement choices can
@@ -566,7 +725,8 @@
               Choose <strong>Edit / Retake</strong> on the page to replace.
             </li>
             <li>
-              Select <strong>Retake with camera</strong>, align the document,
+              Select <strong>Retake with camera</strong>, choose an available
+              <strong>Retake resolution</strong> if needed, align the document,
               and select <strong>Capture replacement</strong>.
               <strong>Cancel retake</strong> closes the camera without changing
               the saved page.
@@ -750,8 +910,15 @@
           <summary>12. Export, draft recovery, and privacy</summary>
           <p>
             Set <strong>Document name</strong> before downloading.
-            <strong>Download PDF</strong> exports the scanned pages in their
-            current order, with eligible reviewed search text.
+            <strong>Export format</strong> offers PDF, JPEG, and PNG, and
+            <strong>Export pages</strong> selects all pages or one saved page.
+            PDF keeps selected pages in one document with eligible reviewed
+            search text. A single JPEG or PNG downloads directly as an image;
+            multiple images download together in a ZIP with numbered filenames.
+            Images do not contain a searchable OCR text layer. PNG is a real
+            lossless file encoding of the saved page, but converting an older
+            saved JPEG cannot undo its earlier compression or recover lost
+            colors. Image exports work offline after the app is cached.
             <strong>Download text</strong> exports available page text and
             fields in UTF-8. It becomes available when at least one page has
             saved text; barcode values or fields alone do not enable it, so copy
@@ -825,8 +992,10 @@
               <tr>
                 <td>Text or stamps disappeared</td>
                 <td>
-                  In Edit / Retake, try Original or Color document. Older pages
-                  may require a retake if the original detail was not retained.
+                  In Edit / Retake, choose Original / preserve colors and start
+                  with brightness/contrast at zero. A previously whitened PDF
+                  cannot recover clipped detail by changing file type; restore
+                  from the retained source or retake if needed.
                 </td>
               </tr>
               <tr>
@@ -853,10 +1022,11 @@
                 </td>
               </tr>
               <tr>
-                <td>PDF is too large or the app slows down</td>
+                <td>PDF or image ZIP is too large or the app slows down</td>
                 <td>
-                  Use 150 DPI or lower JPEG quality for new captures, and export
-                  long documents in smaller batches.
+                  Use a smaller processing-detail limit, 150 DPI, or lower JPEG
+                  quality, and export smaller batches or individual images.
+                  High-detail PNG archives can be particularly large.
                 </td>
               </tr>
               <tr>
@@ -876,6 +1046,12 @@
               </tr>
             </tbody>
           </table>
+          <p>
+            For a colored cover that looked faint in an earlier release, first
+            try <strong>Edit / Retake → Original</strong> using its retained
+            source. The old whitening effect has been removed from Color
+            document. Re-export after saving the corrected preview.
+          </p>
           <p>
             Review real results on your device: camera focus, memory limits, PDF
             readers, and browser permissions differ between phones.

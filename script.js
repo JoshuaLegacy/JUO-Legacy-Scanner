@@ -76,6 +76,42 @@ function makeCanvas(w, h) {
   c.height = h;
   return c;
 }
+function detailLimit() {
+  return Math.min(
+    24000000,
+    Math.max(4000000, Number($("detailLimit").value) * 1000000),
+  );
+}
+function selectedPages() {
+  const value = $("exportPages").value;
+  return value === "all"
+    ? state.pages
+    : state.pages.filter((p) => p.id === value);
+}
+function updateExportOptions() {
+  const value = $("exportPages").value;
+  $("exportPages").replaceChildren();
+  const all = document.createElement("option");
+  all.value = "all";
+  all.textContent = "All pages";
+  $("exportPages").append(all);
+  state.pages.forEach((p, i) => {
+    const o = document.createElement("option");
+    o.value = p.id;
+    o.textContent = `Page ${i + 1}`;
+    $("exportPages").append(o);
+  });
+  $("exportPages").value =
+    value === "all" || state.pages.some((p) => p.id === value) ? value : "all";
+  updateExportLabel();
+}
+function updateExportLabel() {
+  const format = $("exportFormat").value;
+  $("downloadPdfBtn").textContent =
+    format === "pdf"
+      ? "Download PDF"
+      : `Download ${format.toUpperCase()}${selectedPages().length > 1 ? " ZIP" : ""}`;
+}
 function imageCanvas(image, maxPixels = 4000000) {
   const s = Math.min(1, Math.sqrt(maxPixels / (image.width * image.height))),
     c = makeCanvas(
@@ -133,6 +169,7 @@ function updateControls() {
   $("clearBtn").disabled = blocked || !state.pages.length;
   $("confirmCropBtn").disabled =
     state.busy || !state.source || !C.validQuad(state.corners || []);
+  $("applyAutoCropBtn").disabled = state.busy || !state.source;
   $("recognizeBtn").disabled = state.ocrBusy || state.busy;
   $("saveTextBtn").disabled = state.ocrBusy;
   $("ocrLanguage").disabled = state.ocrBusy;
@@ -142,6 +179,7 @@ function updateControls() {
   $("cancelOCRBtn").disabled = !state.ocrBusy;
   $("closeTextBtn").disabled = state.ocrBusy;
   $("pageCount").textContent = state.pages.length;
+  $("cameraResolution").disabled = blocked || !state.stream || state.starting;
 }
 let cameraGeneration = 0;
 function stopCamera() {
@@ -189,6 +227,18 @@ async function startCamera() {
         .applyConstraints({ advanced: [{ focusMode: "continuous" }] })
         .catch(() => {});
     if (generation !== cameraGeneration) return;
+    await CameraControls.attach(
+      track,
+      $("cameraResolution"),
+      $("cameraResolutionStatus"),
+    );
+    if (generation !== cameraGeneration) return;
+    await CameraControls.apply(
+      track,
+      $("cameraResolution").value,
+      $("cameraResolutionStatus"),
+    );
+    if (generation !== cameraGeneration) return;
     $("preview").srcObject = stream;
     await $("preview").play();
     if (generation !== cameraGeneration) return;
@@ -226,7 +276,8 @@ function liveCheck() {
         );
       c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
       const im = c.getContext("2d").getImageData(0, 0, c.width, c.height),
-        corners = C.detectDocument(im),
+        detection = C.findDocument(im),
+        corners = detection?.corners,
         q = C.documentQuality(im, corners),
         overlay = $("liveOverlay");
       overlay.width = c.width;
@@ -256,6 +307,7 @@ function liveCheck() {
       if (
         $("autoCapture").checked &&
         state.steady >= 4 &&
+        detection?.confidence >= 0.75 &&
         Date.now() - state.lastAuto > 6000
       ) {
         state.lastAuto = Date.now();
@@ -273,12 +325,17 @@ async function capturePage() {
   state.busy = true;
   updateControls();
   try {
-    // Use the displayed frame so captured composition matches the preview. Higher resolution is requested at camera start.
-    const v = $("preview"),
-      c = makeCanvas(v.videoWidth, v.videoHeight);
-    c.getContext("2d").drawImage(v, 0, 0);
+    const track = state.stream.getVideoTracks()[0],
+      capture = await CameraControls.capture(
+        track,
+        $("preview"),
+        $("cameraResolution").value,
+        detailLimit(),
+      );
+    if (track.readyState === "ended") return;
     stopCamera();
-    openCrop(imageCanvas(c));
+    openCrop(capture.canvas);
+    $("cropAdvice").textContent += ` ${capture.description}`;
   } catch (err) {
     error(err);
   } finally {
@@ -287,14 +344,15 @@ async function capturePage() {
   }
 }
 function detectCorners() {
-  const { data, scale } = sample(state.source, 480),
-    q = C.detectDocument(data);
-  state.corners = q
-    ? q.map((p) => ({ x: p.x * scale, y: p.y * scale }))
+  const { data, scale } = sample(state.source, 600),
+    detection = C.findDocument(data);
+  state.detection = detection;
+  state.corners = detection
+    ? detection.corners.map((p) => ({ x: p.x * scale, y: p.y * scale }))
     : C.fullCorners(state.source.width, state.source.height);
-  $("cropAdvice").textContent = q
-    ? "Page detected. Check and adjust every corner."
-    : "Could not confidently detect the page. Adjust the corners manually.";
+  $("cropAdvice").textContent = detection
+    ? `Page detected. ${detection.confidence >= 0.75 ? "Strong boundary match." : "Check the boundary carefully."} Adjust any corner if needed.`
+    : "Could not confidently detect all four page boundaries. Adjust the corners manually.";
   drawCrop();
 }
 function openCrop(canvas) {
@@ -315,6 +373,18 @@ function openCrop(canvas) {
   const warnings = C.documentQuality(data, C.detectDocument(data)).warnings;
   if (warnings.length) $("cropAdvice").textContent += " " + warnings.join(" ");
   updateControls();
+  const source = state.source;
+  requestAnimationFrame(() => {
+    if (
+      $("autoCrop").checked &&
+      state.source === source &&
+      state.cropTarget !== "editor" &&
+      !state.busy &&
+      state.detection?.confidence >= 0.75 &&
+      $("cropModal").open
+    )
+      $("confirmCropBtn").click();
+  });
 }
 function drawCrop() {
   if (!state.source) return;
@@ -415,6 +485,14 @@ $("cropModal").addEventListener("cancel", (e) => {
   e.preventDefault();
   closeCrop();
 });
+$("applyAutoCropBtn").onclick = () => {
+  if (state.busy || !state.source) return;
+  detectCorners();
+  if (state.detection?.confidence >= 0.75) $("confirmCropBtn").click();
+  else
+    $("cropAdvice").textContent =
+      "Automatic crop was not confident enough. Check and adjust the four corners, then accept the crop.";
+};
 $("detectBtn").onclick = () => {
   if (!state.busy) detectCorners();
 };
@@ -490,14 +568,20 @@ $("confirmCropBtn").onclick = async () => {
         .getContext("2d")
         .getImageData(0, 0, state.source.width, state.source.height),
       state.corners,
+      detailLimit(),
     );
     if ($("bookEnabled").checked)
       im = C.flattenBook(
         im,
         Number($("topCurve").value) / 100,
         Number($("bottomCurve").value) / 100,
+        detailLimit(),
       );
-    im = C.enhance(im, $("enhancement").value);
+    im = C.adjustTone(
+      C.enhance(im, $("enhancement").value),
+      Number($("brightness").value),
+      Number($("contrast").value),
+    );
     let canvas = makeCanvas(im.width, im.height);
     canvas
       .getContext("2d")
@@ -506,12 +590,13 @@ $("confirmCropBtn").onclick = async () => {
       const angle = C.skewAngle(sample(canvas, 600).data);
       if (angle) canvas = rotate(canvas, angle);
     }
-    canvas = imageCanvas(canvas);
+    canvas = imageCanvas(canvas, detailLimit());
     const size = C.outputSize(
       canvas.width,
       canvas.height,
       $("pageFormat").value,
       Number($("dpiSelect").value),
+      detailLimit(),
     );
     const out = makeCanvas(size.width, size.height);
     out.getContext("2d").drawImage(canvas, 0, 0, out.width, out.height);
@@ -532,6 +617,9 @@ $("confirmCropBtn").onclick = async () => {
         format: $("pageFormat").value,
         dpi: Number($("dpiSelect").value),
         quality: Number($("qualitySlider").value),
+        maxPixels: detailLimit(),
+        brightness: Number($("brightness").value),
+        contrast: Number($("contrast").value),
       },
       width: out.width,
       height: out.height,
@@ -577,7 +665,7 @@ $("importFile").onchange = async (event) => {
       throw Error(
         "This image is too large. Resize it below 40 megapixels first.",
       );
-    openCrop(imageCanvas(img));
+    openCrop(imageCanvas(img, detailLimit()));
   } catch (err) {
     message(`Could not open the image: ${err.message}`);
   } finally {
@@ -598,7 +686,7 @@ function renderPages() {
     const title = document.createElement("p");
     title.id = `page-title-${page.id}`;
     card.setAttribute("aria-labelledby", title.id);
-    title.textContent = `Page ${index + 1} · ${page.type}${page.ocrStale ? " · text needs review" : page.text ? " · text reviewed" : ""}`;
+    title.textContent = `Page ${index + 1} · ${page.type}${page.ocrStale ? " · text needs review" : page.text ? " · text reviewed" : ""} · ${page.width} × ${page.height} (${((page.width * page.height) / 1000000).toFixed(1)} MP)`;
     const controls = document.createElement("div");
     controls.className = "controls";
     function button(label, fn, disabled = false) {
@@ -649,6 +737,7 @@ function renderPages() {
     card.append(img, title, controls);
     container.append(card);
   });
+  updateExportOptions();
   updateControls();
 }
 function openText(page) {
@@ -832,7 +921,14 @@ $("recognizeBtn").onclick = async () => {
         if (score > best.score) best = { angle, score };
       }
       if (best.angle && best.score > baseline + 5) {
-        const corrected = rotate(imageCanvas(img), best.angle);
+        const corrected = rotate(
+          imageCanvas(
+            img,
+            state.editing.editRecipe?.maxPixels ||
+              Math.min(24000000, img.width * img.height),
+          ),
+          best.angle,
+        );
         recognitionImage = corrected.toDataURL("image/jpeg", 0.95);
         state.editing.pendingImage = {
           image: recognitionImage,
@@ -1022,14 +1118,24 @@ $("downloadTextBtn").onclick = () => {
 };
 $("downloadPdfBtn").onclick = async () => {
   if (state.busy || !state.pages.length) return;
+  const pages = selectedPages(),
+    format = $("exportFormat").value;
+  if (!pages.length) return;
   state.busy = true;
   updateControls();
   try {
+    if (format !== "pdf") {
+      await ImageExport.save(pages, format, filename());
+      message(
+        `${format.toUpperCase()} export downloaded. Your draft is kept until you clear it.`,
+      );
+      return;
+    }
     message("Preparing PDF…");
     await loadScript(engines.pdf);
     let pdf;
-    for (let i = 0; i < state.pages.length; i++) {
-      const p = state.pages[i],
+    for (let i = 0; i < pages.length; i++) {
+      const p = pages[i],
         [pw, ph] = p.paper,
         orientation = pw > ph ? "landscape" : "portrait";
       if (!pdf)
@@ -1052,7 +1158,7 @@ $("downloadPdfBtn").onclick = async () => {
         "FAST",
       );
       PDFText.addSearchText(pdf, p, box);
-      message(`Preparing PDF: ${i + 1}/${state.pages.length}`);
+      message(`Preparing PDF: ${i + 1}/${pages.length}`);
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
     pdf.setProperties({ title: filename(), creator: "JUO Legacy Scanner" });
@@ -1147,6 +1253,32 @@ $("clearBtn").onclick = async () => {
   renderPages();
   await persistDraft();
   message("Document cleared.");
+};
+$("exportFormat").onchange = updateExportLabel;
+$("exportPages").onchange = updateExportLabel;
+for (const id of ["brightness", "contrast"])
+  $(id).oninput = () => ($(id + "Value").value = $(id).value);
+$("cameraResolution").onchange = async () => {
+  if (!state.stream || state.busy || state.starting) return;
+  state.busy = true;
+  updateControls();
+  try {
+    const pixels = await CameraControls.apply(
+      state.stream.getVideoTracks()[0],
+      $("cameraResolution").value,
+      $("cameraResolutionStatus"),
+    );
+    if ($("cameraResolution").value !== "auto") {
+      const mp = [4, 8, 12, 24].find((n) => n * 1000000 >= pixels) || 24;
+      $("detailLimit").value = String(mp);
+      $("dpiSelect").value = "0";
+    }
+  } catch (err) {
+    message(err.message);
+  } finally {
+    state.busy = false;
+    updateControls();
+  }
 };
 $("startCameraBtn").onclick = startCamera;
 $("stopCameraBtn").onclick = stopCamera;
