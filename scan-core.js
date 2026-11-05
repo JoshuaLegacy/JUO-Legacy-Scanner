@@ -248,11 +248,277 @@
     }
     return candidate?.corners || null;
   }
+  function convexHull(points) {
+    const sorted = points.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+    if (sorted.length < 4) return [];
+    const lower = [],
+      upper = [];
+    for (const p of sorted) {
+      while (
+        lower.length >= 2 &&
+        cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0
+      )
+        lower.pop();
+      lower.push(p);
+    }
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      const p = sorted[i];
+      while (
+        upper.length >= 2 &&
+        cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0
+      )
+        upper.pop();
+      upper.push(p);
+    }
+    lower.pop();
+    upper.pop();
+    return lower.concat(upper);
+  }
+  function quadrilateral(hull) {
+    const q = hull.slice();
+    if (q.length < 4) return null;
+    const original = area(q);
+    while (q.length > 4) {
+      let index = 0,
+        smallest = Infinity;
+      for (let i = 0; i < q.length; i++) {
+        const lost = Math.abs(
+          cross(q[(i + q.length - 1) % q.length], q[i], q[(i + 1) % q.length]),
+        );
+        if (lost < smallest) {
+          smallest = lost;
+          index = i;
+        }
+      }
+      q.splice(index, 1);
+    }
+    const start = q.reduce(
+        (best, p, i) => (p.x + p.y < q[best].x + q[best].y ? i : best),
+        0,
+      ),
+      out = q.slice(start).concat(q.slice(0, start));
+    return validQuad(out) && area(out) / original > 0.84 ? out : null;
+  }
+  function detectColorPage(image) {
+    const { width: w, height: h, data } = image,
+      n = w * h,
+      border = [];
+    for (let y = 0; y < h; y += 3)
+      for (let x = 0; x < w; x += 3)
+        if (x < w * 0.04 || x > w * 0.96 || y < h * 0.04 || y > h * 0.96) {
+          const i = (y * w + x) * 4;
+          border.push(
+            Math.max(data[i], data[i + 1], data[i + 2]) -
+              Math.min(data[i], data[i + 1], data[i + 2]),
+          );
+        }
+    border.sort((a, b) => a - b);
+    const threshold = Math.max(
+        20,
+        (border[Math.floor(border.length * 0.65)] || 0) + 12,
+      ),
+      mask = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      const j = i * 4;
+      mask[i] =
+        Math.max(data[j], data[j + 1], data[j + 2]) -
+          Math.min(data[j], data[j + 1], data[j + 2]) >
+        threshold
+          ? 1
+          : 0;
+    }
+    // Close small gaps in printed borders without filling the page's text or photographs.
+    const dilated = new Uint8Array(n);
+    for (let y = 1; y < h - 1; y++)
+      for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        dilated[i] =
+          mask[i] || mask[i - 1] || mask[i + 1] || mask[i - w] || mask[i + w]
+            ? 1
+            : 0;
+      }
+    const seen = new Uint8Array(n),
+      queue = new Int32Array(n);
+    let best = null;
+    for (let start = 0; start < n; start++) {
+      if (!dilated[start] || seen[start]) continue;
+      let head = 0,
+        tail = 1,
+        touches = 0;
+      queue[0] = start;
+      seen[start] = 1;
+      const edges = [];
+      while (head < tail) {
+        const i = queue[head++],
+          x = i % w,
+          y = Math.floor(i / w);
+        if (x < 2 || y < 2 || x > w - 3 || y > h - 3) touches++;
+        if (
+          x === 0 ||
+          y === 0 ||
+          x === w - 1 ||
+          y === h - 1 ||
+          !dilated[i - 1] ||
+          !dilated[i + 1] ||
+          !dilated[i - w] ||
+          !dilated[i + w]
+        )
+          edges.push({ x, y });
+        for (const j of [
+          x ? i - 1 : -1,
+          x < w - 1 ? i + 1 : -1,
+          y ? i - w : -1,
+          y < h - 1 ? i + w : -1,
+        ])
+          if (j >= 0 && dilated[j] && !seen[j]) {
+            seen[j] = 1;
+            queue[tail++] = j;
+          }
+      }
+      if (tail < n * 0.08 || touches > Math.min(w, h) * 0.2) continue;
+      const q = quadrilateral(convexHull(edges));
+      if (!q) continue;
+      const size = area(q);
+      if (size < n * 0.18 || size > n * 0.95 || tail / size < 0.16) continue;
+      if (!best || size > area(best)) best = q;
+    }
+    // A printed cover can have a white panel separating its colored top and footer.
+    // Group matching hues before taking the hull so that panel is not mistaken for the page edge.
+    const hues = new Float32Array(n),
+      hist = new Uint32Array(24);
+    for (let i = 0; i < n; i++) {
+      const x = i % w,
+        y = Math.floor(i / w),
+        j = i * 4;
+      if (
+        !mask[i] ||
+        x < w * 0.03 ||
+        x > w * 0.97 ||
+        y < h * 0.03 ||
+        y > h * 0.97
+      ) {
+        hues[i] = -10;
+        continue;
+      }
+      const angle = Math.atan2(
+        Math.sqrt(3) * (data[j + 1] - data[j + 2]),
+        2 * data[j] - data[j + 1] - data[j + 2],
+      );
+      hues[i] = angle;
+      hist[
+        Math.min(23, Math.floor(((angle + Math.PI) / (Math.PI * 2)) * 24))
+      ]++;
+    }
+    const bins = [...hist.keys()].sort((a, b) => hist[b] - hist[a]),
+      used = [];
+    for (const bin of bins) {
+      if (
+        hist[bin] < n * 0.025 ||
+        used.some(
+          (b) => Math.min(Math.abs(b - bin), 24 - Math.abs(b - bin)) < 3,
+        )
+      )
+        continue;
+      used.push(bin);
+      if (used.length > 3) break;
+      const center = ((bin + 0.5) / 24) * Math.PI * 2 - Math.PI,
+        points = [];
+      for (let i = 0; i < n; i++) {
+        if (hues[i] < -4) continue;
+        const delta = Math.abs(hues[i] - center);
+        if (Math.min(delta, Math.PI * 2 - delta) < Math.PI / 5)
+          points.push({ x: i % w, y: Math.floor(i / w) });
+      }
+      const q = quadrilateral(convexHull(points));
+      if (!q) continue;
+      const size = area(q);
+      if (size < n * 0.18 || size > n * 0.95 || points.length / size < 0.12)
+        continue;
+      if (!best || size > area(best)) best = q;
+    }
+    return best;
+  }
+  function boundaryEvidence(image, q) {
+    const { width: w, height: h, data } = image;
+    function pixel(x, y, c) {
+      return data[
+        (clamp(Math.round(y), 0, h - 1) * w + clamp(Math.round(x), 0, w - 1)) *
+          4 +
+          c
+      ];
+    }
+    const sides = [];
+    for (let side = 0; side < 4; side++) {
+      const a = q[side],
+        b = q[(side + 1) % 4],
+        length = distance(a, b),
+        nx = -(b.y - a.y) / length,
+        ny = (b.x - a.x) / length;
+      let supported = 0,
+        contrast = 0;
+      for (let j = 2; j < 39; j++) {
+        const t = j / 40,
+          x = a.x + (b.x - a.x) * t,
+          y = a.y + (b.y - a.y) * t;
+        let strongest = 0;
+        for (let shift = -3; shift <= 3; shift++) {
+          let difference = 0;
+          for (let c = 0; c < 3; c++)
+            difference = Math.max(
+              difference,
+              Math.abs(
+                pixel(x + nx * (shift + 2), y + ny * (shift + 2), c) -
+                  pixel(x + nx * (shift - 2), y + ny * (shift - 2), c),
+              ),
+            );
+          strongest = Math.max(strongest, difference);
+        }
+        if (strongest > 14) supported++;
+        contrast += Math.min(80, strongest);
+      }
+      sides.push(supported / 37);
+    }
+    return {
+      support: sides.reduce((s, v) => s + v, 0) / 4,
+      weakest: Math.min(...sides),
+    };
+  }
+  function findDocument(image) {
+    const list = [
+        ["color outline", detectColorPage(image)],
+        ["light page", detectRegion(image)],
+        ["dark page", detectRegion(image, true)],
+        ["boundary lines", detectEdges(image)],
+      ],
+      n = image.width * image.height;
+    let best = null;
+    for (const [method, corners] of list) {
+      if (!corners || !validQuad(corners)) continue;
+      const ratio = area(corners) / n;
+      if (ratio < 0.18 || ratio > 0.96) continue;
+      const evidence = boundaryEvidence(image, corners),
+        nearFrame = corners.some(
+          (p) =>
+            Math.min(p.x, p.y, image.width - 1 - p.x, image.height - 1 - p.y) <
+            Math.min(image.width, image.height) * 0.01,
+        ),
+        confidence = clamp(
+          0.2 +
+            0.45 * evidence.support +
+            0.2 * evidence.weakest +
+            0.15 * Math.min(1, ratio / 0.65) -
+            (nearFrame ? 0.15 : 0),
+          0,
+          1,
+        ),
+        score = confidence + 0.15 * ratio;
+      if (!best || score > best.score)
+        best = { corners, confidence, method, score };
+    }
+    return best;
+  }
   function detectDocument(image) {
-    const light = detectRegion(image),
-      dark = detectRegion(image, true);
-    if (light && dark) return area(light) >= area(dark) ? light : dark;
-    return light || dark || detectEdges(image);
+    return findDocument(image)?.corners || null;
   }
   // Hough-line fallback uses boundary evidence instead of page brightness.
   function detectEdges(image) {
@@ -451,6 +717,43 @@
   }
   function enhance(image, mode) {
     if (mode === "original") return image;
+    // Color covers are not white paper. Preserve their luminance and hue instead of
+    // dividing every pixel by a local mean (which bleached dark printed backgrounds).
+    if (mode === "color" || mode === "gray") {
+      const hist = new Uint32Array(256),
+        n = image.width * image.height;
+      for (let i = 0; i < image.data.length; i += 4)
+        hist[
+          Math.round(
+            0.299 * image.data[i] +
+              0.587 * image.data[i + 1] +
+              0.114 * image.data[i + 2],
+          )
+        ]++;
+      function percentile(f) {
+        let sum = 0;
+        for (let i = 0; i < 256; i++) {
+          sum += hist[i];
+          if (sum >= n * f) return i;
+        }
+        return 255;
+      }
+      const black = Math.min(16, percentile(0.01)),
+        white = Math.max(240, percentile(0.99)),
+        gain = Math.min(1.12, 255 / Math.max(128, white - black));
+      for (let i = 0; i < image.data.length; i += 4) {
+        const y =
+            0.299 * image.data[i] +
+            0.587 * image.data[i + 1] +
+            0.114 * image.data[i + 2],
+          target = clamp((y - black) * gain, 0, 255),
+          ratio = y > 0 ? target / y : 0;
+        for (let c = 0; c < 3; c++)
+          image.data[i + c] =
+            mode === "gray" ? target : clamp(image.data[i + c] * ratio, 0, 255);
+      }
+      return image;
+    }
     const w = image.width,
       h = image.height,
       g = gray(image),
@@ -475,24 +778,25 @@
               integral[y0 * stride + x1] -
               integral[y1 * stride + x0] +
               integral[y0 * stride + x0]) /
-            ((x1 - x0) * (y1 - y0));
-        const i = y * w + x,
-          base = g[i],
-          normalized = clamp((base * 235) / Math.max(40, mean), 0, 255);
-        for (let k = 0; k < 3; k++)
-          image.data[i * 4 + k] =
-            mode === "bw"
-              ? base < mean - 12
-                ? 0
-                : 255
-              : mode === "gray"
-                ? normalized
-                : clamp(
-                    (image.data[i * 4 + k] * 235) / Math.max(40, mean),
-                    0,
-                    255,
-                  );
+            ((x1 - x0) * (y1 - y0)),
+          value = g[y * w + x] < mean - 12 ? 0 : 255;
+        for (let c = 0; c < 3; c++) image.data[(y * w + x) * 4 + c] = value;
       }
+    return image;
+  }
+  function adjustTone(image, brightness = 0, contrast = 0) {
+    brightness = clamp(Number(brightness) || 0, -40, 40);
+    contrast = clamp(Number(contrast) || 0, -40, 60);
+    if (!brightness && !contrast) return image;
+    const gain = 1 + contrast / 100,
+      offset = brightness * 2.55;
+    for (let i = 0; i < image.data.length; i += 4)
+      for (let c = 0; c < 3; c++)
+        image.data[i + c] = clamp(
+          (image.data[i + c] - 127.5) * gain + 127.5 + offset,
+          0,
+          255,
+        );
     return image;
   }
   // Estimate small text skew using horizontal projection variance. Caller supplies a downsampled image.
@@ -532,14 +836,14 @@
     return best > baseline * 1.12 ? angle : 0;
   }
   const SIZES = { A4: [210, 297], A3: [297, 420], LETTER: [215.9, 279.4] };
-  function outputSize(w, h, format, dpi) {
+  function outputSize(w, h, format, dpi, maxPixels = 4000000) {
     let [pw, ph] = SIZES[format] || SIZES.A4;
     if (w > h) [pw, ph] = [ph, pw];
     const scale = Math.min(
       1,
-      ((pw / 25.4) * dpi) / w,
-      ((ph / 25.4) * dpi) / h,
-      Math.sqrt(4000000 / (w * h)),
+      dpi > 0 ? ((pw / 25.4) * dpi) / w : 1,
+      dpi > 0 ? ((ph / 25.4) * dpi) / h : 1,
+      Math.sqrt(Math.min(24000000, maxPixels) / (w * h)),
     );
     return {
       width: Math.max(1, Math.floor(w * scale)),
@@ -709,9 +1013,11 @@
     pdfUnicodeHex,
     textRuns,
     detectDocument,
+    findDocument,
     homography,
     warp,
     enhance,
+    adjustTone,
     skewAngle,
     outputSize,
     fitImage,

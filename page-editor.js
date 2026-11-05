@@ -28,11 +28,17 @@
       "editorDeskew",
       "editorReplaceFile",
       "editorRetakeBtn",
+      "editorDetailLimit",
+      "editorDpi",
+      "editorBrightness",
+      "editorContrast",
     ])
       byId(id).disabled = busy || retaking;
     byId("savePageEditBtn").disabled =
       busy || retaking || !hasChanges() || !session?.result;
     byId("cancelPageEditBtn").disabled = state.busy;
+    byId("editorCameraResolution").disabled =
+      state.busy || !retakeStream || retakeStarting;
     byId("captureRetakeBtn").disabled =
       state.busy || !retakeStream || byId("editorVideo").readyState < 2;
     byId("cancelRetakeBtn").disabled = state.busy;
@@ -49,6 +55,7 @@
     retakeStream = null;
     byId("editorVideo").srcObject = null;
     byId("editorCameraPanel").hidden = true;
+    byId("editorCameraResolution").disabled = true;
     byId("editorPreview").hidden = false;
     update();
   }
@@ -61,7 +68,11 @@
       const img = new Image();
       img.src = page.sourceImage || page.image;
       await img.decode();
-      const source = imageCanvas(img),
+      const source = imageCanvas(
+          img,
+          page.editRecipe?.maxPixels ||
+            Math.min(24000000, img.width * img.height),
+        ),
         recipe = PageEdits.recipe(page, source.width, source.height);
       session = {
         pageId: page.id,
@@ -83,9 +94,19 @@
       byId("editorPreview").src = page.image;
       byId("editorEnhancement").value = recipe.mode;
       byId("editorDeskew").checked = recipe.deskew;
+      byId("editorDetailLimit").value = String(
+        (recipe.maxPixels || 4000000) / 1000000,
+      );
+      byId("editorDpi").value = String(recipe.dpi);
+      for (const id of ["Brightness", "Contrast"]) {
+        byId("editor" + id).value = recipe[id.toLowerCase()] || 0;
+        byId("editor" + id + "Value").value = byId("editor" + id).value;
+      }
       byId("editorNotice").textContent = page.sourceImage
         ? "Edits use the retained source image. Save changes when the preview looks right."
         : "This older page starts from its saved image. Detail or colors removed previously cannot be recovered.";
+      byId("editorNotice").textContent +=
+        ` Source: ${source.width} × ${source.height} (${((source.width * source.height) / 1000000).toFixed(1)} MP). Higher limits cannot recreate detail missing from this source.`;
       byId("editorStatus").textContent =
         "Your saved page stays unchanged until you choose Save changes.";
       byId("pageEditor").showModal();
@@ -119,10 +140,20 @@
     let im = ScanCore.warp(
       source.getContext("2d").getImageData(0, 0, source.width, source.height),
       recipe.corners,
+      recipe.maxPixels || 4000000,
     );
     if (recipe.book)
-      im = ScanCore.flattenBook(im, recipe.topCurve, recipe.bottomCurve);
-    im = ScanCore.enhance(im, recipe.mode);
+      im = ScanCore.flattenBook(
+        im,
+        recipe.topCurve,
+        recipe.bottomCurve,
+        recipe.maxPixels || 4000000,
+      );
+    im = ScanCore.adjustTone(
+      ScanCore.enhance(im, recipe.mode),
+      recipe.brightness || 0,
+      recipe.contrast || 0,
+    );
     let canvas = makeCanvas(im.width, im.height);
     canvas
       .getContext("2d")
@@ -132,12 +163,13 @@
       const angle = ScanCore.skewAngle(sample(canvas, 600).data);
       if (angle) canvas = rotate(canvas, angle);
     }
-    canvas = imageCanvas(canvas);
+    canvas = imageCanvas(canvas, recipe.maxPixels || 4000000);
     const size = ScanCore.outputSize(
         canvas.width,
         canvas.height,
         recipe.format,
         recipe.dpi,
+        recipe.maxPixels || 4000000,
       ),
       out = makeCanvas(size.width, size.height);
     out.getContext("2d").drawImage(canvas, 0, 0, out.width, out.height);
@@ -191,7 +223,7 @@
   }
   function crop() {
     if (!session || session.rendering || state.busy) return;
-    openCrop(imageCanvas(session.source));
+    openCrop(imageCanvas(session.source, session.recipe.maxPixels || 4000000));
     state.cropTarget = "editor";
     state.corners = structuredClone(session.recipe.corners);
     byId("cropTitle").textContent = "Adjust saved page crop";
@@ -280,6 +312,18 @@
           .applyConstraints({ advanced: [{ focusMode: "continuous" }] })
           .catch(() => {});
       if (token !== retakeGeneration || !session) return;
+      await CameraControls.attach(
+        track,
+        byId("editorCameraResolution"),
+        byId("editorResolutionStatus"),
+      );
+      if (token !== retakeGeneration || !session) return;
+      await CameraControls.apply(
+        track,
+        byId("editorCameraResolution").value,
+        byId("editorResolutionStatus"),
+      );
+      if (token !== retakeGeneration || !session) return;
       byId("editorVideo").srcObject = stream;
       await byId("editorVideo").play();
       if (token !== retakeGeneration || !session) return;
@@ -296,7 +340,7 @@
       update();
     }
   }
-  function captureReplacement() {
+  async function captureReplacement() {
     if (
       !session ||
       !retakeStream ||
@@ -304,11 +348,23 @@
       state.busy
     )
       return;
-    const v = byId("editorVideo"),
-      canvas = makeCanvas(v.videoWidth, v.videoHeight);
-    canvas.getContext("2d").drawImage(v, 0, 0);
-    stopRetake();
-    replaceSource(imageCanvas(canvas));
+    state.busy = true;
+    update();
+    try {
+      const capture = await CameraControls.capture(
+        retakeStream.getVideoTracks()[0],
+        byId("editorVideo"),
+        byId("editorCameraResolution").value,
+        session.recipe.maxPixels || 4000000,
+      );
+      stopRetake();
+      replaceSource(capture.canvas);
+    } catch (err) {
+      byId("editorStatus").textContent = err.message;
+    } finally {
+      state.busy = false;
+      update();
+    }
   }
   async function replaceFile(event) {
     const file = event.target.files[0];
@@ -333,7 +389,7 @@
         throw Error(
           "Choose an image between 4 pixels per side and 40 megapixels.",
         );
-      replaceSource(imageCanvas(img));
+      replaceSource(imageCanvas(img, session.recipe.maxPixels || 4000000));
     } catch (err) {
       byId("editorStatus").textContent =
         `Could not open replacement: ${err.message}. Your saved page was not changed.`;
@@ -407,6 +463,47 @@
     message("Last image edit undone.");
   }
   function init() {
+    for (const [id, key] of [
+      ["editorDetailLimit", "maxPixels"],
+      ["editorDpi", "dpi"],
+    ])
+      byId(id).onchange = () => {
+        if (!session) return;
+        session.recipe[key] =
+          Number(byId(id).value) * (key === "maxPixels" ? 1000000 : 1);
+        schedulePreview();
+      };
+    for (const label of ["Brightness", "Contrast"])
+      byId("editor" + label).oninput = () => {
+        if (!session) return;
+        session.recipe[label.toLowerCase()] = Number(
+          byId("editor" + label).value,
+        );
+        byId("editor" + label + "Value").value = byId("editor" + label).value;
+        schedulePreview();
+      };
+    byId("editorCameraResolution").onchange = async () => {
+      if (!retakeStream || state.busy) return;
+      state.busy = true;
+      update();
+      try {
+        const pixels = await CameraControls.apply(
+          retakeStream.getVideoTracks()[0],
+          byId("editorCameraResolution").value,
+          byId("editorResolutionStatus"),
+        );
+        const mp = [4, 8, 12, 24].find((n) => n * 1000000 >= pixels) || 24;
+        session.recipe.maxPixels = mp * 1000000;
+        byId("editorDetailLimit").value = String(mp);
+        session.recipe.dpi = 0;
+        byId("editorDpi").value = "0";
+      } catch (err) {
+        byId("editorStatus").textContent = err.message;
+      } finally {
+        state.busy = false;
+        update();
+      }
+    };
     byId("editorCropBtn").onclick = crop;
     byId("editorRotateBtn").onclick = rotatePreview;
     byId("savePageEditBtn").onclick = save;
