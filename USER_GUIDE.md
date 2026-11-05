@@ -1,8 +1,15 @@
 # JUO Legacy Scanner — User Guide
 
-For version 3.3.0 · Updated 5 November 2026
+For version 3.3.1 · Updated 5 November 2026
 
 [Open JUO Legacy Scanner](https://joshualegacy.github.io/JUO-Legacy-Scanner/). The same instructions are available inside the app through **Guide**, including when the app has been cached for offline use.
+
+## Latest features: recommended starting settings
+
+- **Colored covers and photographs:** choose **Original / preserve colors**, with **Brightness = 0** and **Contrast = 0**. The old whitening effect has been removed. Use Color document only when you want gentle extra contrast.
+- **More small-print detail:** start the camera, choose a higher available **Camera resolution**, and keep **Output resolution → Source detail**. Check the actual returned dimensions; increasing a processing limit cannot invent camera pixels.
+- **Save as a picture:** select **JPEG image** or **PNG image** under **Export format**, choose all pages or a single page under **Export pages**, then use the download button. Multiple pictures come in one ZIP file.
+- **Let the scanner crop:** enable **Automatically crop and add confidently detected pages**. Confident outlines are saved directly; uncertain outlines stay in the crop screen. Inspect saved thumbnails and correct them with Edit / Retake when needed.
 
 ## 1. Scan your first document
 
@@ -10,18 +17,25 @@ For version 3.3.0 · Updated 5 November 2026
 2. Choose **Paper size**, **Processing detail limit**, **Output resolution**, **Enhancement**, and **JPEG quality** before capturing. **Original / preserve colors** is the default. Leave brightness and contrast at zero for an unchanged starting image. These settings apply when you add the page.
 3. Put the document on a flat surface in even light. A contrasting background helps the scanner find its edges. Keep all four page corners visible and avoid glare, fingers, and heavy shadows.
 4. Select **Start camera**. Once ready, **Camera resolution** lists the modes the browser reports. Choose a higher supported mode if needed, check the actual resolution status, then select **Capture page**. Alternatively, choose **Import image** and select a JPEG, PNG, or WebP photo.
-5. In **Adjust document edges**, inspect the outline. Drag each corner to the document edge, or select a corner and use the **Horizontal** and **Vertical** sliders. Use **Detect edges**, **Use full image**, or **Rotate 90°** if needed; check the corners again after rotating.
+5. Unless automatic cropping has already added the page, inspect the outline in **Adjust document edges**. Drag each corner to the document edge, or select a corner and use the **Horizontal** and **Vertical** sliders. Use **Detect edges**, **Use full image**, or **Rotate 90°** if needed; check the corners again after rotating.
 6. Leave **Straighten text (up to 5°)** checked to correct a small tilt, or uncheck it if the result looks worse. Select **Add page** when ready, or **Cancel** to discard this capture.
-7. Check the saved thumbnail. Select **Start camera** again for the next page. Capture pauses the camera while you crop; **Add page** still needs your confirmation.
+7. Check the saved thumbnail. Select **Start camera** again for the next page. Capture stops the camera while the page is processed. With automatic cropping off, accept the page using **Add page**; with it on, a confident outline can be accepted automatically.
 8. Name the document, choose **Export format** (PDF, JPEG, or PNG) and **Export pages**, then select the download button. For PDF, select **Download PDF**. To make the PDF searchable, recognize and review its text first as described below.
 
 ## 2. Capture controls and quality advice
 
 **Stop camera** releases the camera. The scanner also stops camera access when you leave the page or switch away from it. Start it again when you return.
 
-Optional **Capture automatically when a document is steady and clear** waits for a detected page to stay steady and pass the quality checks, then opens the crop screen. It does not automatically accept the crop or save the page. If it does not trigger, use **Capture page** manually.
+Optional **Capture automatically when a document is steady and clear** waits for a detected page to stay steady and pass the quality checks, then opens the crop screen. On its own, it does not accept the crop or save the page. If automatic cropping is also enabled, a confident outline can be accepted and saved after capture. If automatic capture does not trigger, use **Capture page** manually.
 
 **Automatically crop and add confidently detected pages** is a separate option. When enabled, a strong boundary match skips manual cropping and adds the page. Uncertain outlines stay on the crop screen for review. You can also select **Auto crop** in that screen to detect and accept a confident boundary in one step. Auto-capture controls when a photograph is taken; auto-crop controls whether its boundary is accepted. Retained source images let you correct a crop later through Edit / Retake.
+
+| Automatic capture | Automatic cropping | What happens                                                                                                         |
+| ----------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Off               | Off                | You take the photo and review/accept the crop.                                                                       |
+| On                | Off                | The scanner takes a steady, clear photo; you review/accept the crop.                                                 |
+| Off               | On                 | You take the photo; a confident boundary is cropped and added automatically.                                         |
+| On                | On                 | A steady, clear photo and confident crop can both be accepted automatically. Uncertain boundaries still need review. |
 
 The preview can warn about low detail, darkness, low contrast, possible glare, or uneven lighting. Hold the phone steady, clean the lens, add diffuse light, or change the light's angle. Detection checks matching color outlines, light and dark page regions, and page boundaries. Matching hues across a colored cover and its footer are grouped so a white printed panel is less likely to truncate the page. However, difficult backgrounds may still need manual corners. Warnings and outlines are guidance: inspect the image yourself, especially names, small print, and faint text.
 
@@ -40,7 +54,27 @@ The preview can warn about low detail, darkness, low contrast, possible glare, o
 | **Brightness / Contrast**      | Start at zero. Lower brightness if a scan looks too light, or add a little contrast if needed. Saved-page editing provides a preview before you accept the result.                                                                                                                                                        |
 | **JPEG quality**               | Choose 0.5–1.0. Higher values usually give larger files. Start at 0.85 and inspect small text. This does not change a PNG into a JPEG; image export uses the selected file type.                                                                                                                                          |
 
+### Choose a higher camera resolution
+
+1. Select **Start camera** and wait for the preview.
+2. Open **Camera resolution**. You may see **Auto / balanced**, **Up to … MP**, and **Maximum available**. Only modes reported by that browser/camera are offered.
+3. Choose the mode you need. A higher explicit camera choice raises the processing-detail limit as needed and selects Source detail so a DPI setting does not immediately reduce it again.
+4. Read the **Preview** dimensions. If high-resolution still capture is available, the captured photo can differ from that preview; the crop advice reports the actual captured dimensions. Saved thumbnails also show their final pixel size and megapixels.
+5. If capture is slow or the browser struggles, choose a lower mode or a smaller processing limit. Start with 4 MP for everyday pages, and try 8 or 12 MP for small print when supported. 24 MP uses substantially more memory.
+
+The camera mode, processing limit, and DPI are different controls. For example, a 2 MP camera frame with a 12 MP processing limit remains at most 2 MP. A larger capture can also become smaller after cropping. The scanner's processing maximum is 24 MP; it does not promise access to every megapixel advertised on the phone. In **Edit / Retake**, **Retake resolution** provides the same type of capability-based camera choice.
+
 Imported images must be at most 30 MB and 40 megapixels. Large files can still strain a phone's memory. Export long documents in batches rather than assuming an unlimited page count.
+
+### Restore a cover that looked too faint
+
+1. Select **Edit / Retake** on the saved page.
+2. Choose **Original** in the editor and set **Brightness** and **Contrast** to zero.
+3. Check the preview. If needed, lower brightness slightly or add a little contrast, checking that lettering remains readable.
+4. Select **Save changes**. If the page has retained OCR text, recognize it again or explicitly review it against the edited image.
+5. Choose the export format and download a fresh copy. A PDF already saved to your phone is not changed automatically.
+
+This can restore colors from a retained source. If only a previously washed-out image remains, clipped colors/detail cannot be reconstructed by choosing PNG or higher megapixels; use **Retake with camera** or **Replace from photo** with the original photo.
 
 ## 4. Correct a curved book page
 
@@ -128,6 +162,24 @@ Clearing browser data or storage eviction can remove downloaded languages. Check
 
 Set **Document name** before downloading. **Export format** offers PDF, JPEG, and PNG, and **Export pages** selects all pages or one saved page. PDF keeps selected pages in one document with eligible reviewed search text. A single JPEG or PNG downloads directly as an image; multiple images download together in a ZIP with numbered filenames. Images do not contain a searchable OCR text layer. PNG is a real lossless file encoding of the saved page, but converting an older saved JPEG cannot undo its earlier compression or recover lost colors. Image exports work offline after the app is cached. **Download text** exports available page text and fields in UTF-8. It becomes available when at least one page has saved text; barcode values or fields alone do not enable it, so copy those values from Suggested fields if needed. Downloading keeps the current draft so you can continue working; it does not reset the document.
 
+### Export PDF, JPEG, or PNG step by step
+
+1. Finish reviewing the saved pages and put them in the order you want.
+2. Set **Document name**.
+3. Under **Export format**, select **PDF document**, **JPEG image**, or **PNG image**.
+4. Under **Export pages**, choose **All pages** or the particular **Page …** you want. Check this selection each time: it is possible to export only one page of a longer document.
+5. Select the download button. Its label follows your choice: Download PDF, Download JPEG/PNG, or Download JPEG/PNG ZIP.
+6. Find the download in your browser downloads or your phone's Files/Downloads app. For multiple pictures, open the ZIP and extract the numbered images before sharing them individually.
+
+| Format | Best for                                                       | Important difference                                                                                                    |
+| ------ | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| PDF    | Keeping several pages together and searching reviewed OCR text | Paper size and page order are retained; only eligible reviewed text is searchable.                                      |
+| JPEG   | Sharing a normal picture, often with a smaller file size       | A single page is a .jpg file. The scanner reuses its saved JPEG bytes instead of adding another lossy compression step. |
+| PNG    | A lossless image-file encoding of the saved page               | Often larger. It cannot reverse compression or whitening already present in an older source.                            |
+| Text   | Copying recognized text and reviewed fields                    | Separate UTF-8 download, without the scanned page image. Unreviewed retained text is labelled.                          |
+
+JPEG/PNG files do not contain the PDF's OCR search layer. Download text as well if you need the words separately. Downloading does not clear your draft, and does not overwrite an older file that is already open in another app.
+
 The current draft, retained source images, and one undo version per page are saved locally in this browser when storage succeeds. Reopening the app restores that draft. This is one current draft, not a library of separate projects. Private browsing, browser cleanup, storage limits, or eviction can remove it.
 
 If the app says a draft or edit could not be saved, the current pages may exist only in memory. Export immediately before closing the tab. Keep downloaded copies of important documents rather than relying on recovery alone.
@@ -135,6 +187,8 @@ If the app says a draft or edit could not be saved, the current pages may exist 
 Camera images, OCR, editing, and identification run on the device. No document upload or account is required. Initial app, engine, and language downloads still use an internet connection. On a shared device, export what you need and use **Clear document** to remove the current pages, reviewed text, sources, and undo records from the active draft. Clearing does not delete PDFs/text files already downloaded to your device, and removing an OCR language is a separate action.
 
 ## 13. Troubleshooting and updates
+
+If the new controls or updated instructions are missing, export any unsaved work first, reconnect, close **all** scanner tabs/windows (including an installed scanner window), and reopen the site. Open Guide and check for version **3.3.1**. Do not clear browser storage just to update the app: doing so can remove drafts and downloaded OCR languages.
 
 | Problem                                             | What to do                                                                                                                                                                                                                           |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

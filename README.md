@@ -4,7 +4,7 @@ A static, browser-based document scanner by Joshua Orizu. Camera images, recogni
 
 ## User guide
 
-Read the complete [User Guide](USER_GUIDE.md) for the current capture, editing/retake, undo, OCR review, language downloads, barcode, export and recovery workflows. In the app, select **Guide** for the offline instructions. The sections below also document technical limits and development checks.
+Read the complete [User Guide](USER_GUIDE.md) for current scanning, editing/retake, undo, OCR, offline, barcode, export and recovery instructions. It includes dedicated walkthroughs for faint-color recovery, camera versus processing resolution, automatic capture versus cropping, and PDF/JPEG/PNG downloads. In the app, select **Guide** for the offline copy. The sections below also document technical limits and development checks.
 
 ## Scan a document
 
