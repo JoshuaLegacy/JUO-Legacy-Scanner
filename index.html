@@ -436,10 +436,44 @@
           <button id="closeHelpBtn" class="secondary">Close guide</button>
         </div>
         <p class="hint">
-          Version 3.3.0 · Updated 5 November 2026. Instructions are available
+          Version 3.3.1 · Updated 5 November 2026. Instructions are available
           offline once cached.
         </p>
-        <section aria-label="Quick start">
+        <section>
+          <h3>Latest features: recommended starting settings</h3>
+          <ul>
+            <li>
+              <strong>Colored covers and photographs:</strong> choose
+              <strong>Original / preserve colors</strong>, with
+              <strong>Brightness = 0</strong> and <strong>Contrast = 0</strong>.
+              The old whitening effect has been removed. Use Color document only
+              when you want gentle extra contrast.
+            </li>
+            <li>
+              <strong>More small-print detail:</strong> start the camera, choose
+              a higher available <strong>Camera resolution</strong>, and keep
+              <strong>Output resolution → Source detail</strong>. Check the
+              actual returned dimensions; increasing a processing limit cannot
+              invent camera pixels.
+            </li>
+            <li>
+              <strong>Save as a picture:</strong> select
+              <strong>JPEG image</strong> or <strong>PNG image</strong> under
+              <strong>Export format</strong>, choose all pages or a single page
+              under <strong>Export pages</strong>, then use the download button.
+              Multiple pictures come in one ZIP file.
+            </li>
+            <li>
+              <strong>Let the scanner crop:</strong> enable
+              <strong
+                >Automatically crop and add confidently detected pages</strong
+              >. Confident outlines are saved directly; uncertain outlines stay
+              in the crop screen. Inspect saved thumbnails and correct them with
+              Edit / Retake when needed.
+            </li>
+          </ul>
+        </section>
+        <section>
           <h3>1. Scan your first document</h3>
           <ol>
             <li>
@@ -470,13 +504,13 @@
               photo.
             </li>
             <li>
-              In <strong>Adjust document edges</strong>, inspect the outline.
-              Drag each corner to the document edge, or select a corner and use
-              the <strong>Horizontal</strong> and
-              <strong>Vertical</strong> sliders. Use
-              <strong>Detect edges</strong>, <strong>Use full image</strong>, or
-              <strong>Rotate 90°</strong> if needed; check the corners again
-              after rotating.
+              Unless automatic cropping has already added the page, inspect the
+              outline in <strong>Adjust document edges</strong>. Drag each
+              corner to the document edge, or select a corner and use the
+              <strong>Horizontal</strong> and <strong>Vertical</strong> sliders.
+              Use <strong>Detect edges</strong>,
+              <strong>Use full image</strong>, or <strong>Rotate 90°</strong> if
+              needed; check the corners again after rotating.
             </li>
             <li>
               Leave <strong>Straighten text (up to 5°)</strong> checked to
@@ -487,8 +521,9 @@
             <li>
               Check the saved thumbnail. Select
               <strong>Start camera</strong> again for the next page. Capture
-              pauses the camera while you crop; <strong>Add page</strong> still
-              needs your confirmation.
+              stops the camera while the page is processed. With automatic
+              cropping off, accept the page using <strong>Add page</strong>;
+              with it on, a confident outline can be accepted automatically.
             </li>
             <li>
               Name the document, choose <strong>Export format</strong> (PDF,
@@ -512,8 +547,10 @@
               >Capture automatically when a document is steady and clear</strong
             >
             waits for a detected page to stay steady and pass the quality
-            checks, then opens the crop screen. It does not automatically accept
-            the crop or save the page. If it does not trigger, use
+            checks, then opens the crop screen. On its own, it does not accept
+            the crop or save the page. If automatic cropping is also enabled, a
+            confident outline can be accepted and saved after capture. If
+            automatic capture does not trigger, use
             <strong>Capture page</strong> manually.
           </p>
           <p>
@@ -529,6 +566,46 @@
             accepted. Retained source images let you correct a crop later
             through Edit / Retake.
           </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Automatic capture</th>
+                <th>Automatic cropping</th>
+                <th>What happens</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Off</td>
+                <td>Off</td>
+                <td>You take the photo and review/accept the crop.</td>
+              </tr>
+              <tr>
+                <td>On</td>
+                <td>Off</td>
+                <td>
+                  The scanner takes a steady, clear photo; you review/accept the
+                  crop.
+                </td>
+              </tr>
+              <tr>
+                <td>Off</td>
+                <td>On</td>
+                <td>
+                  You take the photo; a confident boundary is cropped and added
+                  automatically.
+                </td>
+              </tr>
+              <tr>
+                <td>On</td>
+                <td>On</td>
+                <td>
+                  A steady, clear photo and confident crop can both be accepted
+                  automatically. Uncertain boundaries still need review.
+                </td>
+              </tr>
+            </tbody>
+          </table>
           <p>
             The preview can warn about low detail, darkness, low contrast,
             possible glare, or uneven lighting. Hold the phone steady, clean the
@@ -632,10 +709,78 @@
               </tr>
             </tbody>
           </table>
+          <h3>Choose a higher camera resolution</h3>
+          <ol>
+            <li>
+              Select <strong>Start camera</strong> and wait for the preview.
+            </li>
+            <li>
+              Open <strong>Camera resolution</strong>. You may see
+              <strong>Auto / balanced</strong>, <strong>Up to … MP</strong>, and
+              <strong>Maximum available</strong>. Only modes reported by that
+              browser/camera are offered.
+            </li>
+            <li>
+              Choose the mode you need. A higher explicit camera choice raises
+              the processing-detail limit as needed and selects Source detail so
+              a DPI setting does not immediately reduce it again.
+            </li>
+            <li>
+              Read the <strong>Preview</strong> dimensions. If high-resolution
+              still capture is available, the captured photo can differ from
+              that preview; the crop advice reports the actual captured
+              dimensions. Saved thumbnails also show their final pixel size and
+              megapixels.
+            </li>
+            <li>
+              If capture is slow or the browser struggles, choose a lower mode
+              or a smaller processing limit. Start with 4 MP for everyday pages,
+              and try 8 or 12 MP for small print when supported. 24 MP uses
+              substantially more memory.
+            </li>
+          </ol>
+          <p>
+            The camera mode, processing limit, and DPI are different controls.
+            For example, a 2 MP camera frame with a 12 MP processing limit
+            remains at most 2 MP. A larger capture can also become smaller after
+            cropping. The scanner&#39;s processing maximum is 24 MP; it does not
+            promise access to every megapixel advertised on the phone. In
+            <strong>Edit / Retake</strong>,
+            <strong>Retake resolution</strong> provides the same type of
+            capability-based camera choice.
+          </p>
           <p>
             Imported images must be at most 30 MB and 40 megapixels. Large files
             can still strain a phone&#39;s memory. Export long documents in
             batches rather than assuming an unlimited page count.
+          </p>
+          <h3>Restore a cover that looked too faint</h3>
+          <ol>
+            <li>Select <strong>Edit / Retake</strong> on the saved page.</li>
+            <li>
+              Choose <strong>Original</strong> in the editor and set
+              <strong>Brightness</strong> and <strong>Contrast</strong> to zero.
+            </li>
+            <li>
+              Check the preview. If needed, lower brightness slightly or add a
+              little contrast, checking that lettering remains readable.
+            </li>
+            <li>
+              Select <strong>Save changes</strong>. If the page has retained OCR
+              text, recognize it again or explicitly review it against the
+              edited image.
+            </li>
+            <li>
+              Choose the export format and download a fresh copy. A PDF already
+              saved to your phone is not changed automatically.
+            </li>
+          </ol>
+          <p>
+            This can restore colors from a retained source. If only a previously
+            washed-out image remains, clipped colors/detail cannot be
+            reconstructed by choosing PNG or higher megapixels; use
+            <strong>Retake with camera</strong> or
+            <strong>Replace from photo</strong> with the original photo.
           </p>
         </details>
         <details class="guide-section">
@@ -926,6 +1071,87 @@
             current draft so you can continue working; it does not reset the
             document.
           </p>
+          <h3>Export PDF, JPEG, or PNG step by step</h3>
+          <ol>
+            <li>
+              Finish reviewing the saved pages and put them in the order you
+              want.
+            </li>
+            <li>Set <strong>Document name</strong>.</li>
+            <li>
+              Under <strong>Export format</strong>, select
+              <strong>PDF document</strong>, <strong>JPEG image</strong>, or
+              <strong>PNG image</strong>.
+            </li>
+            <li>
+              Under <strong>Export pages</strong>, choose
+              <strong>All pages</strong> or the particular
+              <strong>Page …</strong> you want. Check this selection each time:
+              it is possible to export only one page of a longer document.
+            </li>
+            <li>
+              Select the download button. Its label follows your choice:
+              Download PDF, Download JPEG/PNG, or Download JPEG/PNG ZIP.
+            </li>
+            <li>
+              Find the download in your browser downloads or your phone&#39;s
+              Files/Downloads app. For multiple pictures, open the ZIP and
+              extract the numbered images before sharing them individually.
+            </li>
+          </ol>
+          <table>
+            <thead>
+              <tr>
+                <th>Format</th>
+                <th>Best for</th>
+                <th>Important difference</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>PDF</td>
+                <td>
+                  Keeping several pages together and searching reviewed OCR text
+                </td>
+                <td>
+                  Paper size and page order are retained; only eligible reviewed
+                  text is searchable.
+                </td>
+              </tr>
+              <tr>
+                <td>JPEG</td>
+                <td>
+                  Sharing a normal picture, often with a smaller file size
+                </td>
+                <td>
+                  A single page is a .jpg file. The scanner reuses its saved
+                  JPEG bytes instead of adding another lossy compression step.
+                </td>
+              </tr>
+              <tr>
+                <td>PNG</td>
+                <td>A lossless image-file encoding of the saved page</td>
+                <td>
+                  Often larger. It cannot reverse compression or whitening
+                  already present in an older source.
+                </td>
+              </tr>
+              <tr>
+                <td>Text</td>
+                <td>Copying recognized text and reviewed fields</td>
+                <td>
+                  Separate UTF-8 download, without the scanned page image.
+                  Unreviewed retained text is labelled.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            JPEG/PNG files do not contain the PDF&#39;s OCR search layer.
+            Download text as well if you need the words separately. Downloading
+            does not clear your draft, and does not overwrite an older file that
+            is already open in another app.
+          </p>
           <p>
             The current draft, retained source images, and one undo version per
             page are saved locally in this browser when storage succeeds.
@@ -952,6 +1178,14 @@
         </details>
         <details class="guide-section">
           <summary>13. Troubleshooting and updates</summary>
+          <p>
+            If the new controls or updated instructions are missing, export any
+            unsaved work first, reconnect, close <strong>all</strong> scanner
+            tabs/windows (including an installed scanner window), and reopen the
+            site. Open Guide and check for version <strong>3.3.1</strong>. Do
+            not clear browser storage just to update the app: doing so can
+            remove drafts and downloaded OCR languages.
+          </p>
           <table>
             <thead>
               <tr>
