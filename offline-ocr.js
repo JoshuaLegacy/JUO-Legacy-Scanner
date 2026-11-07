@@ -19,13 +19,20 @@
         throw e;
       }));
   }
-  function specs(m, language) {
-    if (!m.languages[language]) throw Error("Choose a supported language.");
+  function specs(m, language, quality = "fast") {
+    const model = (
+      quality === "accurate" ? m.accurateLanguages : m.languages
+    )?.[language];
+    if (!model)
+      throw Error("Choose a supported language and recognition quality.");
     return [
       { ...m.core, path: "ocr-assets/v1/core.js" },
       {
-        ...m.languages[language],
-        path: `ocr-assets/v1/lang/${language}.traineddata`,
+        ...model,
+        path:
+          quality === "accurate"
+            ? `ocr-assets/v2/accurate/lang/${language}.traineddata`
+            : `ocr-assets/v1/lang/${language}.traineddata`,
       },
     ];
   }
@@ -77,9 +84,9 @@
       navigator.serviceWorker.addEventListener("controllerchange", changed);
     });
   }
-  async function status(language) {
+  async function status(language, quality = "fast") {
     const m = await manifest(),
-      items = specs(m, language);
+      items = specs(m, language, quality);
     if (!("caches" in root))
       return { ready: false, bytes: items.reduce((n, s) => n + s.bytes, 0) };
     const cache = await caches.open(CACHE),
@@ -96,10 +103,13 @@
       bytes: items.reduce((n, s) => n + s.bytes, 0),
     };
   }
-  async function prepare(language, { signal, onProgress = () => {} } = {}) {
+  async function prepare(
+    language,
+    { signal, onProgress = () => {}, quality = "fast" } = {},
+  ) {
     await controller();
     const m = await manifest(),
-      items = specs(m, language),
+      items = specs(m, language, quality),
       cache = await caches.open(CACHE);
     let completed = 0,
       total = items.reduce((n, s) => n + s.bytes, 0);
@@ -172,24 +182,34 @@
       );
       completed += length;
     }
-    if (!(await status(language)).ready)
+    if (!(await status(language, quality)).ready)
       throw Error(
         "The language pack could not be saved. Free some browser storage and retry.",
       );
     return {
       workerPath: absolute("vendor/tesseract-worker.min.js"),
       corePath: absolute("ocr-assets/v1/core.js"),
-      langPath: absolute("ocr-assets/v1/lang"),
+      langPath: absolute(
+        quality === "accurate"
+          ? "ocr-assets/v2/accurate/lang"
+          : "ocr-assets/v1/lang",
+      ),
       gzip: false,
       cacheMethod: "none",
       workerBlobURL: false,
     };
   }
-  async function remove(language) {
+  async function remove(language, quality = "fast") {
     const m = await manifest();
     if (!m.languages[language]) throw Error("Choose a supported language.");
     const cache = await caches.open(CACHE);
-    await cache.delete(absolute(`ocr-assets/v1/lang/${language}.traineddata`));
+    await cache.delete(
+      absolute(
+        quality === "accurate"
+          ? `ocr-assets/v2/accurate/lang/${language}.traineddata`
+          : `ocr-assets/v1/lang/${language}.traineddata`,
+      ),
+    );
   }
   root.OfflineOCR = { status, prepare, remove, manifest, CACHE };
 })(globalThis);

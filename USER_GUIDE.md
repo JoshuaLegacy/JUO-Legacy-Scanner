@@ -1,6 +1,6 @@
 # JUO Legacy Scanner — User Guide
 
-For version 3.3.1 · Updated 5 November 2026
+For version 3.4.0 · Updated 6 November 2026
 
 [Open JUO Legacy Scanner](https://joshualegacy.github.io/JUO-Legacy-Scanner/). The same instructions are available inside the app through **Guide**, including when the app has been cached for offline use.
 
@@ -11,6 +11,9 @@ For version 3.3.1 · Updated 5 November 2026
 - **Save as a picture:** select **JPEG image** or **PNG image** under **Export format**, choose all pages or a single page under **Export pages**, then use the download button. Multiple pictures come in one ZIP file.
 - **Let the scanner crop:** enable **Automatically crop and add confidently detected pages**. Confident outlines are saved directly; uncertain outlines stay in the crop screen. Inspect saved thumbnails and correct them with Edit / Retake when needed.
 
+- **Better text recognition:** use Accurate quality, OCR contrast preparation, and the optional second preparation. Compare the results and inspect uncertain words before saving.
+- **Editable Word document:** use **Save review & download Word** inside Text / identify, or **Download Word (.docx)** beside Download text.
+
 ## 1. Scan your first document
 
 1. Open the scanner in a current browser. Use the HTTPS site and allow camera access when prompted.
@@ -20,7 +23,7 @@ For version 3.3.1 · Updated 5 November 2026
 5. Unless automatic cropping has already added the page, inspect the outline in **Adjust document edges**. Drag each corner to the document edge, or select a corner and use the **Horizontal** and **Vertical** sliders. Use **Detect edges**, **Use full image**, or **Rotate 90°** if needed; check the corners again after rotating.
 6. Leave **Straighten text (up to 5°)** checked to correct a small tilt, or uncheck it if the result looks worse. Select **Add page** when ready, or **Cancel** to discard this capture.
 7. Check the saved thumbnail. Select **Start camera** again for the next page. Capture stops the camera while the page is processed. With automatic cropping off, accept the page using **Add page**; with it on, a confident outline can be accepted automatically.
-8. Name the document, choose **Export format** (PDF, JPEG, or PNG) and **Export pages**, then select the download button. For PDF, select **Download PDF**. To make the PDF searchable, recognize and review its text first as described below.
+8. Name the document, choose **Export format** (PDF, JPEG, PNG, or Word) and **Export pages**, then select the download button. For PDF, select **Download PDF**. To make the PDF searchable, recognize and review its text first as described below.
 
 ## 2. Capture controls and quality advice
 
@@ -111,18 +114,22 @@ There is one undo version per page, not a full edit history. A later saved image
 
 Denied camera permission or an invalid replacement file leaves the saved page intact. You can try again or use **Replace from photo**. After saving, **Undo edit** restores the previous version.
 
-## 7. Recognize text and make PDFs searchable
+## 7. Recognize text and download Word
 
-1. Select **Text / identify** on a saved page.
-2. Choose **Text language**. Fourteen languages are available: English, French, Spanish, German, Portuguese, Arabic, Hindi, simplified Chinese, Russian, Ukrainian, Japanese, Korean, Yoruba, and Italian.
-3. If needed, download the language while online. See the offline instructions below.
-4. Optional **Detect text orientation** checks four rotations and corrects the page when recognition improves. Leave it on for sideways text; turn it off to save time on a clear, upright page.
-5. Select **Recognize text**. Use **Cancel operation** if you want to stop.
-6. Read and correct **Recognized text**, **Document type**, and **Suggested fields**. Pay particular attention to names, dates, document numbers, and amounts. Average confidence is a hint, not a guarantee.
-7. Select **Save review** to accept the result. Closing without saving does not accept the new recognition result.
-8. Repeat for other pages, then download the PDF or text file.
+1. Select **Text / identify** on a saved page and choose **Text language**. Fourteen languages are available.
+2. Choose **Accurate** quality (default) for the larger recognition model, or **Fast** for smaller downloads and quicker processing. Each quality has its own language download. Download the selected language and quality while online.
+3. Choose the text layout: Auto, a single block, sparse text/posters, or a single line. Start with Auto for ordinary documents.
+4. Leave OCR contrast preparation enabled for faint text. This prepares a separate recognition image; your saved scan keeps its colors. **Compare two text preparations (slower)** runs an additional preparation to handle uneven lighting and light lettering on dark backgrounds.
+5. Optional **Detect text orientation** checks rotations. Turn it off for an upright page to save time. Select **Recognize text**; **Cancel operation** stops processing.
+6. Compare the recognition results using the result selector. Corrections are kept separately while switching results. Expand the source image and select an uncertain word to inspect its enlarged image. Engine confidence is a review aid, not a measured accuracy percentage.
+7. Correct **Recognized text**, **Document type**, and **Suggested fields**, especially names, dates and amounts. Select **Save review**, or **Save review & download Word** to save and immediately download the current page as an editable .docx file. Closing without saving discards the new recognition result.
+8. Repeat for other pages. Use **Download Word (.docx)** beside Download text, or choose Word under Export format. Both main Word download actions follow **Export pages**.
 
-Reviewed text and manual corrections can be included in PDF search. Corrected text may have approximate selection positions, and the visible scan is not rewritten. Search/selection behavior varies by PDF reader, especially for right-to-left text. **Download text** provides a UTF-8 copy when you need the text separately.
+Word downloads are genuine editable Office Open XML documents and preserve Unicode text. At least one selected page must have saved reviewed text. Other selected pages receive a clear missing-text or review-needed note; stale text is excluded. Word export reproduces the reviewed words and paragraph breaks, with page headings, rather than reconstructing the original tables, artwork or exact layout. It works offline once the app is cached.
+
+Reviewed text and manual corrections can also be included in PDF search. Corrected text may have approximate selection positions; the visible scan is unchanged. PDF reader support varies, especially for right-to-left text. **Download text** provides a separate UTF-8 copy.
+
+For best results, crop closely, use a sharp high-resolution image and even light. Handwriting, decorative lettering, blur and very small text still need manual correction. Higher accuracy models and the second pass take longer and use more memory; choose Fast or disable the second pass on slower devices.
 
 ## 8. Review text after an image edit
 
@@ -150,19 +157,19 @@ Review the decoded value under **Suggested fields**, then select **Save review**
 ## 11. Prepare for offline scanning and OCR
 
 1. Open the app while online so its scanning, editing, export, barcode, and Guide files can be cached.
-2. Open **Text / identify**, select a language, and choose **Download language for offline use**. Recognition can also prepare a missing language automatically while online.
-3. Wait for **Language downloaded and ready for offline OCR**. The shared engine plus English model is about 7.7 MB; other language sizes vary. The app checks downloads before reporting readiness.
+2. Open **Text / identify**, select a language and recognition quality, and choose **Download language for offline use**. Recognition can also prepare a missing language automatically while online.
+3. Wait for **Language downloaded and ready for offline OCR**. The shared engine plus English model is about 18.4 MB for Accurate or 7.7 MB for Fast; other language sizes vary. The app checks downloads before reporting readiness.
 4. Before relying on offline work, turn off the connection, reopen the app, and try the workflow you need. Camera access and storage still depend on the browser.
 
-**Cancel operation** stops a download or recognition. Completed shared assets may remain for a retry. **Remove downloaded language** removes the selected model without deleting scanned pages; a shared engine may remain for other languages. Select and download any additional languages separately.
+**Cancel operation** stops a download or recognition. Completed shared assets may remain for a retry. **Remove downloaded language** removes the selected language and quality model without deleting scanned pages; a shared engine may remain for other languages. Select and download any additional languages separately.
 
 Clearing browser data or storage eviction can remove downloaded languages. Check readiness again before a trip or other offline session. If a language is missing while offline, reconnect and download it before recognizing text.
 
 ## 12. Export, draft recovery, and privacy
 
-Set **Document name** before downloading. **Export format** offers PDF, JPEG, and PNG, and **Export pages** selects all pages or one saved page. PDF keeps selected pages in one document with eligible reviewed search text. A single JPEG or PNG downloads directly as an image; multiple images download together in a ZIP with numbered filenames. Images do not contain a searchable OCR text layer. PNG is a real lossless file encoding of the saved page, but converting an older saved JPEG cannot undo its earlier compression or recover lost colors. Image exports work offline after the app is cached. **Download text** exports available page text and fields in UTF-8. It becomes available when at least one page has saved text; barcode values or fields alone do not enable it, so copy those values from Suggested fields if needed. Downloading keeps the current draft so you can continue working; it does not reset the document.
+Set **Document name** before downloading. **Export format** offers PDF, JPEG, PNG, and Word (.docx), and **Export pages** selects all pages or one saved page. PDF keeps selected pages in one document with eligible reviewed search text. A single JPEG or PNG downloads directly as an image; multiple images download together in a ZIP with numbered filenames. Images do not contain a searchable OCR text layer. PNG is a real lossless file encoding of the saved page, but converting an older saved JPEG cannot undo its earlier compression or recover lost colors. Image exports work offline after the app is cached. **Download text** exports available page text and fields in UTF-8. It becomes available when at least one page has saved text; barcode values or fields alone do not enable it, so copy those values from Suggested fields if needed. Downloading keeps the current draft so you can continue working; it does not reset the document.
 
-### Export PDF, JPEG, or PNG step by step
+### Export PDF, JPEG, PNG, or Word step by step
 
 1. Finish reviewing the saved pages and put them in the order you want.
 2. Set **Document name**.
@@ -188,7 +195,7 @@ Camera images, OCR, editing, and identification run on the device. No document u
 
 ## 13. Troubleshooting and updates
 
-If the new controls or updated instructions are missing, export any unsaved work first, reconnect, close **all** scanner tabs/windows (including an installed scanner window), and reopen the site. Open Guide and check for version **3.3.1**. Do not clear browser storage just to update the app: doing so can remove drafts and downloaded OCR languages.
+If the new controls or updated instructions are missing, export any unsaved work first, reconnect, close **all** scanner tabs/windows (including an installed scanner window), and reopen the site. Open Guide and check for version **3.4.0**. Do not clear browser storage just to update the app: doing so can remove drafts and downloaded OCR languages.
 
 | Problem                                             | What to do                                                                                                                                                                                                                           |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

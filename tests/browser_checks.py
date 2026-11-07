@@ -16,6 +16,7 @@ with sync_playwright() as p:
   assets=Path(os.environ['SCANNER_ASSET_FIXTURES']);manifest=json.loads((ROOT/'ocr-assets.json').read_text())
   context.route(manifest['core']['url'],lambda route:route.fulfill(path=str(assets/'core.js'),content_type='application/javascript',headers={'Access-Control-Allow-Origin':'*'}))
   context.route(manifest['languages']['eng']['url'],lambda route:route.fulfill(path=str(assets/'eng.traineddata'),content_type='application/octet-stream',headers={'Access-Control-Allow-Origin':'*'}))
+ context.add_init_script("document.addEventListener('DOMContentLoaded',()=>{const s=document.getElementById('ocrAccuracy');if(s)s.value='fast';});")
  page=context.new_page(); errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.goto(os.environ.get('SCANNER_URL','http://127.0.0.1:8765'));page.wait_for_function('!state.restoring')
  page.locator('#importFile').set_input_files('/tmp/scanner-fixture.png')

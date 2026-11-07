@@ -108,9 +108,46 @@ function updateExportOptions() {
 function updateExportLabel() {
   const format = $("exportFormat").value;
   $("downloadPdfBtn").textContent =
-    format === "pdf"
-      ? "Download PDF"
-      : `Download ${format.toUpperCase()}${selectedPages().length > 1 ? " ZIP" : ""}`;
+    format === "docx"
+      ? "Download Word (.docx)"
+      : format === "pdf"
+        ? "Download PDF"
+        : `Download ${format.toUpperCase()}${selectedPages().length > 1 ? " ZIP" : ""}`;
+  updateWordStatus();
+}
+function updateWordStatus() {
+  const pages = selectedPages(),
+    count = pages.filter(WordExport.reviewed).length;
+  $("wordExportStatus").textContent = count
+    ? `Word: reviewed text on ${count} of ${pages.length} selected page(s). Other pages will have a note instead of unreviewed text.`
+    : "Recognize text and Save review to enable Word download. Choose a page under Export pages if needed.";
+}
+async function downloadWordPages(pages) {
+  const blob = await WordExport.build(pages, {
+    title: filename(),
+    numbers: pages.map(
+      (p) => state.pages.findIndex((item) => item.id === p.id) + 1,
+    ),
+  });
+  download(blob, filename() + ".docx");
+}
+async function exportWord(pages = selectedPages()) {
+  if (state.busy || state.ocrBusy || !pages.some(WordExport.reviewed)) return;
+  state.busy = true;
+  updateControls();
+  try {
+    message("Preparing editable Word document…");
+    await downloadWordPages(pages);
+    message("Word document downloaded with reviewed editable text.");
+  } catch (err) {
+    error(err);
+  } finally {
+    state.busy = false;
+    updateControls();
+  }
+}
+function ocrQuality() {
+  return $("ocrAccuracy").value || "accurate";
 }
 function imageCanvas(image, maxPixels = 4000000) {
   const s = Math.min(1, Math.sqrt(maxPixels / (image.width * image.height))),
@@ -164,7 +201,25 @@ function updateControls() {
     PageEditor.isOpen();
   $("importFile").disabled =
     blocked || $("cropModal").open || PageEditor.isOpen();
-  $("downloadPdfBtn").disabled = blocked || !state.pages.length;
+  $("downloadPdfBtn").disabled =
+    blocked ||
+    !state.pages.length ||
+    ($("exportFormat").value === "docx" &&
+      !selectedPages().some(WordExport.reviewed));
+  $("downloadWordBtn").disabled =
+    blocked || state.ocrBusy || !selectedPages().some(WordExport.reviewed);
+  $("downloadWordCurrentBtn").disabled =
+    blocked || state.ocrBusy || !$("recognizedText").value.trim();
+  for (const id of [
+    "ocrAccuracy",
+    "ocrLayout",
+    "ocrEnhance",
+    "ocrRetry",
+    "autoOrient",
+    "ocrResultChoice",
+  ])
+    $(id).disabled = state.ocrBusy;
+  updateWordStatus();
   $("downloadTextBtn").disabled = blocked || !state.pages.some((p) => p.text);
   $("clearBtn").disabled = blocked || !state.pages.length;
   $("confirmCropBtn").disabled =
@@ -742,6 +797,7 @@ function renderPages() {
 }
 function openText(page) {
   if (state.busy) return;
+  OCRReview.reset();
   state.editing = page;
   $("recognizedText").value = page.text;
   $("documentType").value = page.type;
@@ -762,14 +818,17 @@ function openText(page) {
   $("barcodeBtn").disabled = false;
   updatePackStatus();
   $("textModal").showModal();
+  updateControls();
 }
 function closeText() {
   if (state.ocrBusy) return;
+  OCRReview.reset();
   if (state.editing) {
     delete state.editing.pendingWords;
     delete state.editing.pendingText;
     delete state.editing.pendingConfidence;
     delete state.editing.pendingImage;
+    delete state.editing.pendingRecognition;
   }
   $("textModal").close();
   state.editing = null;
@@ -784,7 +843,7 @@ let packGeneration = 0,
 async function updatePackStatus() {
   const generation = ++packGeneration;
   try {
-    const info = await OfflineOCR.status($("ocrLanguage").value);
+    const info = await OfflineOCR.status($("ocrLanguage").value, ocrQuality());
     if (generation !== packGeneration) return;
     $("packStatus").textContent = info.ready
       ? "Language downloaded and ready for offline OCR."
@@ -796,6 +855,7 @@ async function updatePackStatus() {
   }
 }
 $("ocrLanguage").onchange = updatePackStatus;
+$("ocrAccuracy").onchange = updatePackStatus;
 function beginOperation() {
   const controller = new AbortController();
   let reject;
@@ -837,6 +897,7 @@ $("prepareOCRBtn").onclick = async () => {
       OfflineOCR.prepare($("ocrLanguage").value, {
         signal: op.controller.signal,
         onProgress: packProgress,
+        quality: ocrQuality(),
       }),
       op.cancelled,
     ]);
@@ -853,7 +914,7 @@ $("prepareOCRBtn").onclick = async () => {
 $("removeOCRBtn").onclick = async () => {
   if (state.ocrBusy) return;
   try {
-    await OfflineOCR.remove($("ocrLanguage").value);
+    await OfflineOCR.remove($("ocrLanguage").value, ocrQuality());
     await updatePackStatus();
   } catch (err) {
     $("packStatus").textContent = err.message;
@@ -868,6 +929,11 @@ $("recognizeBtn").onclick = async () => {
     "pendingImage",
   ])
     delete state.editing[key];
+  OCRReview.reset();
+  const quality = ocrQuality(),
+    layout = Number($("ocrLayout").value),
+    enhance = $("ocrEnhance").checked,
+    retry = $("ocrRetry").checked;
   const op = beginOperation();
   $("ocrStatus").textContent = "Preparing text recognition…";
   let worker;
@@ -876,6 +942,7 @@ $("recognizeBtn").onclick = async () => {
       OfflineOCR.prepare($("ocrLanguage").value, {
         signal: op.controller.signal,
         onProgress: packProgress,
+        quality: ocrQuality(),
       }),
       op.cancelled,
     ]);
@@ -899,13 +966,27 @@ $("recognizeBtn").onclick = async () => {
       .catch(() => {});
     worker = await Promise.race([workerPromise, op.cancelled]);
     checkOperation(op);
+    await Promise.race([
+      worker.setParameters({
+        preserve_interword_spaces: "1",
+        user_defined_dpi: "300",
+        tessedit_pageseg_mode: layout,
+      }),
+      op.cancelled,
+    ]);
+    checkOperation(op);
     let recognitionImage = state.editing.image;
     state.editing.pendingImage = null;
     if ($("autoOrient").checked) {
       const img = new Image();
       img.src = recognitionImage;
       await img.decode();
-      const preview = imageCanvas(img, 900000);
+      const preview = OCRPrep.prepare(imageCanvas(img, 900000), {
+        variant: enhance ? "contrast" : "original",
+        quality,
+        upscale: false,
+        maxPixels: 1200000,
+      }).canvas;
       let best = { angle: 0, score: -1 },
         baseline = 0;
       for (const angle of [0, 90, 180, 270]) {
@@ -948,24 +1029,63 @@ $("recognizeBtn").onclick = async () => {
         };
       }
     }
-    const { data } = await Promise.race([
-      worker.recognize(recognitionImage),
-      op.cancelled,
-    ]);
+    const img = new Image();
+    img.src = recognitionImage;
+    await img.decode();
     checkOperation(op);
-    const proposed = C.identify(data.text);
-    state.editing.pendingWords = (data.words || []).map((w) => ({
-      text: w.text,
-      bbox: w.bbox,
-      confidence: w.confidence,
-    }));
-    state.editing.pendingText = data.text;
-    state.editing.pendingConfidence = data.confidence;
-    $("recognizedText").value = data.text;
-    $("documentType").value = proposed.type;
-    $("identifiedFields").value = proposed.fields;
+    const source = imageCanvas(img, quality === "accurate" ? 6000000 : 4000000);
+    async function runPass(variant, label, psm) {
+      $("ocrStatus").textContent = label + "…";
+      await Promise.race([
+        worker.setParameters({ tessedit_pageseg_mode: psm }),
+        op.cancelled,
+      ]);
+      checkOperation(op);
+      const prepared = OCRPrep.prepare(source, { variant, quality }),
+        { data } = await Promise.race([
+          worker.recognize(prepared.canvas),
+          op.cancelled,
+        ]);
+      checkOperation(op);
+      // Map from the prepared source canvas to the saved page, including any initial downsample.
+      const geometry = {
+        ...prepared,
+        scaleX: (prepared.scaleX * source.width) / img.naturalWidth,
+        scaleY: (prepared.scaleY * source.height) / img.naturalHeight,
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      };
+      return {
+        text: data.text || "",
+        confidence: Number(data.confidence) || 0,
+        words: OCRPrep.mapWords(data.words, geometry),
+        label,
+      };
+    }
+    const results = [
+      await runPass(
+        enhance ? "contrast" : "original",
+        enhance ? "Contrast preparation" : "Original image",
+        layout,
+      ),
+    ];
+    if (retry)
+      results.push(
+        await runPass(
+          "adaptive",
+          "Alternate lighting preparation",
+          layout === 3 ? 11 : layout,
+        ),
+      );
+    checkOperation(op);
+    state.editing.pendingRecognition = {
+      quality,
+      language: $("ocrLanguage").value,
+      layout,
+    };
+    OCRReview.render(results, OCRPrep.choose(results), recognitionImage);
     $("ocrStatus").textContent =
-      `Average confidence: ${Math.round(data.confidence)}%. Review all text and suggested fields, then save.`;
+      `Recognition complete${results.length > 1 ? " — compare the two results if needed" : ""}. Review the text and flagged words, then Save review or Save review & download Word.`;
   } catch (err) {
     for (const key of [
       "pendingText",
@@ -981,9 +1101,9 @@ $("recognizeBtn").onclick = async () => {
     await endOperation(op);
   }
 };
-$("saveTextBtn").onclick = async () => {
+async function saveTextReview() {
   const p = state.editing;
-  if (!p || state.ocrBusy) return;
+  if (!p || state.ocrBusy) return false;
   const text = $("recognizedText").value;
   if (
     p.ocrStale &&
@@ -992,7 +1112,7 @@ $("saveTextBtn").onclick = async () => {
   ) {
     $("ocrStatus").textContent =
       "Check the review confirmation after comparing this text and its fields with the edited page, or recognize text again.";
-    return;
+    return false;
   }
   // Do not place stale OCR word boxes into the searchable layer after manual corrections.
   if (p.pendingImage) Object.assign(p, p.pendingImage);
@@ -1005,6 +1125,12 @@ $("saveTextBtn").onclick = async () => {
     p.words = [];
   p.confidence = p.pendingConfidence ?? p.confidence;
   p.text = text;
+  if (p.pendingRecognition) {
+    p.ocrQuality = p.pendingRecognition.quality;
+    p.ocrLanguage = p.pendingRecognition.language;
+    p.ocrLayout = p.pendingRecognition.layout;
+    delete p.pendingRecognition;
+  }
   p.ocrStale = false;
   p.type = $("documentType").value;
   p.fields = $("identifiedFields").value;
@@ -1018,9 +1144,17 @@ $("saveTextBtn").onclick = async () => {
   renderPages();
   await persistDraft();
   message(
-    "Recognition review saved. Your reviewed text is included in PDF search and text download.",
+    "Recognition review saved. Reviewed text is available for PDF search, text and Word download.",
   );
+  return true;
+}
+$("saveTextBtn").onclick = saveTextReview;
+$("downloadWordCurrentBtn").onclick = async () => {
+  const page = state.editing;
+  if (!page || state.ocrBusy) return;
+  if (await saveTextReview()) await exportWord([page]);
 };
+$("downloadWordBtn").onclick = () => exportWord();
 $("barcodeBtn").onclick = async () => {
   if (state.ocrBusy || !state.editing) return;
   const op = beginOperation();
@@ -1124,6 +1258,11 @@ $("downloadPdfBtn").onclick = async () => {
   state.busy = true;
   updateControls();
   try {
+    if (format === "docx") {
+      await downloadWordPages(pages);
+      message("Word document downloaded with reviewed editable text.");
+      return;
+    }
     if (format !== "pdf") {
       await ImageExport.save(pages, format, filename());
       message(
@@ -1198,9 +1337,10 @@ function dbRequest(mode, fn) {
 function persistDraft() {
   if (!state.db) return Promise.resolve(false);
   const snapshot = structuredClone({
-    pages: state.pages.map(
-      ({ pendingWords, pendingText, pendingConfidence, pendingImage, ...p }) =>
-        p,
+    pages: state.pages.map((p) =>
+      Object.fromEntries(
+        Object.entries(p).filter(([key]) => !key.startsWith("pending")),
+      ),
     ),
     filename: $("filename").value,
   });
@@ -1254,8 +1394,14 @@ $("clearBtn").onclick = async () => {
   await persistDraft();
   message("Document cleared.");
 };
-$("exportFormat").onchange = updateExportLabel;
-$("exportPages").onchange = updateExportLabel;
+$("exportFormat").onchange = () => {
+  updateExportLabel();
+  updateControls();
+};
+$("exportPages").onchange = () => {
+  updateExportLabel();
+  updateControls();
+};
 for (const id of ["brightness", "contrast"])
   $(id).oninput = () => ($(id + "Value").value = $(id).value);
 $("cameraResolution").onchange = async () => {
@@ -1304,6 +1450,7 @@ if ("serviceWorker" in navigator)
       .catch((err) => console.warn("Offline setup failed", err)),
   );
 PageEditor.init();
+OCRReview.init();
 restore();
 if (new URLSearchParams(location.search).get("action") === "help")
   $("helpModal").showModal();
