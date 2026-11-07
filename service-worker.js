@@ -1,12 +1,15 @@
 /* Keep the app shell offline; optional engines are cached only after successful downloads. */
 "use strict";
 const CACHE_PREFIX = "juo-legacy-scanner-";
-const CACHE_NAME = CACHE_PREFIX + "v8";
+const CACHE_NAME = CACHE_PREFIX + "v9";
 const SHELL = [
   "./",
   "./index.html",
   "./style.css",
   "./script.js",
+  "./ocr-prep.js",
+  "./ocr-review.js",
+  "./word-export.js",
   "./camera-controls.js",
   "./image-export.js",
   "./vendor/jszip.min.js",
@@ -48,7 +51,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || !["https:", "http:"].includes(url.protocol))
     return;
   if (url.origin !== self.location.origin) return;
-  const packRoot = new URL("ocr-assets/v1/", self.registration.scope).href;
+  const packRoot = new URL("ocr-assets/", self.registration.scope).href;
   if (url.href.startsWith(packRoot)) {
     event.respondWith(
       caches

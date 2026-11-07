@@ -19,6 +19,9 @@
     <script defer src="page-editor.js"></script>
     <script defer src="camera-controls.js"></script>
     <script defer src="image-export.js"></script>
+    <script defer src="ocr-prep.js"></script>
+    <script defer src="ocr-review.js"></script>
+    <script defer src="word-export.js"></script>
     <script defer src="script.js"></script>
   </head>
   <body>
@@ -149,6 +152,7 @@
           <label
             >Export format<select id="exportFormat">
               <option value="pdf">PDF document</option>
+              <option value="docx">Word document (.docx, reviewed text)</option>
               <option value="jpeg">JPEG image</option>
               <option value="png">PNG image</option>
             </select></label
@@ -164,10 +168,15 @@
         </p>
         <div class="controls">
           <button id="downloadPdfBtn" disabled>Download PDF</button
+          ><button id="downloadWordBtn" class="secondary" disabled>
+            Download Word (.docx)</button
           ><button id="downloadTextBtn" class="secondary" disabled>
             Download text</button
           ><button id="clearBtn" class="danger" disabled>Clear document</button>
         </div>
+        <p id="wordExportStatus" class="hint" role="status">
+          Recognize text and save its review to enable Word download.
+        </p>
         <p id="storageStatus" class="hint">
           Drafts are saved locally on this browser. Clear the document when
           finished on a shared device.
@@ -349,6 +358,30 @@
           Language support does not imply document identification is available
           in that language.
         </p>
+        <div class="options">
+          <label
+            >Recognition quality<select id="ocrAccuracy">
+              <option value="accurate" selected>
+                Accurate (recommended; larger download)
+              </option>
+              <option value="fast">Fast (smaller download)</option>
+            </select></label
+          ><label
+            >Page layout<select id="ocrLayout">
+              <option value="3">Automatic page</option>
+              <option value="6">Single text block</option>
+              <option value="11">Sparse text / posters</option>
+              <option value="7">Single line</option>
+            </select></label
+          >
+        </div>
+        <label class="check"
+          ><input id="ocrEnhance" type="checkbox" checked /> Improve text
+          contrast for OCR only</label
+        ><label class="check"
+          ><input id="ocrRetry" type="checkbox" checked /> Compare two text
+          preparations (slower)</label
+        >
         <label
           >Text language<select id="ocrLanguage">
             <option value="eng">English</option>
@@ -385,6 +418,32 @@
           </button>
         </div>
         <p id="ocrStatus" role="status"></p>
+        <section
+          id="ocrCandidatePanel"
+          hidden
+          aria-label="Recognition comparison"
+        >
+          <label
+            >Recognition result<select id="ocrResultChoice"></select
+          ></label>
+          <p id="ocrReviewSummary" class="hint"></p>
+          <details>
+            <summary>Compare with scanned page</summary>
+            <img
+              id="ocrSourcePreview"
+              alt="Scanned page used for recognition"
+            />
+          </details>
+          <p class="hint">
+            Select a flagged word to inspect its image and highlight the text
+            for correction.
+          </p>
+          <div id="uncertainWords" class="controls"></div>
+          <canvas
+            id="ocrWordPreview"
+            aria-label="Image crop of the selected uncertain word"
+          ></canvas>
+        </section>
         <details id="retainedReview" hidden>
           <summary>Text retained from before the image edit</summary>
           <label
@@ -427,49 +486,75 @@
         </label>
         <div class="controls">
           <button id="saveTextBtn">Save review</button
+          ><button id="downloadWordCurrentBtn" class="secondary" disabled>
+            Save review &amp; download Word</button
           ><button id="closeTextBtn" class="secondary">Close</button>
         </div>
       </dialog>
       <dialog id="helpModal" aria-labelledby="helpTitle">
         <div class="guide-header">
           <h2 id="helpTitle">User guide</h2>
-          <button id="closeHelpBtn" class="secondary">Close guide</button>
+          <button id="closeHelpBtn" type="button">Close guide</button>
         </div>
         <p class="hint">
-          Version 3.3.1 · Updated 5 November 2026. Instructions are available
-          offline once cached.
+          Version 3.4.0 · Updated 6 November 2026. Instructions are available
+          offline after caching.
         </p>
         <section>
           <h3>Latest features: recommended starting settings</h3>
           <ul>
             <li>
-              <strong>Colored covers and photographs:</strong> choose
-              <strong>Original / preserve colors</strong>, with
-              <strong>Brightness = 0</strong> and <strong>Contrast = 0</strong>.
-              The old whitening effect has been removed. Use Color document only
-              when you want gentle extra contrast.
+              <p>
+                <strong>Colored covers and photographs:</strong> choose
+                <strong>Original / preserve colors</strong>, with
+                <strong>Brightness = 0</strong> and
+                <strong>Contrast = 0</strong>. The old whitening effect has been
+                removed. Use Color document only when you want gentle extra
+                contrast.
+              </p>
             </li>
             <li>
-              <strong>More small-print detail:</strong> start the camera, choose
-              a higher available <strong>Camera resolution</strong>, and keep
-              <strong>Output resolution → Source detail</strong>. Check the
-              actual returned dimensions; increasing a processing limit cannot
-              invent camera pixels.
+              <p>
+                <strong>More small-print detail:</strong> start the camera,
+                choose a higher available <strong>Camera resolution</strong>,
+                and keep <strong>Output resolution → Source detail</strong>.
+                Check the actual returned dimensions; increasing a processing
+                limit cannot invent camera pixels.
+              </p>
             </li>
             <li>
-              <strong>Save as a picture:</strong> select
-              <strong>JPEG image</strong> or <strong>PNG image</strong> under
-              <strong>Export format</strong>, choose all pages or a single page
-              under <strong>Export pages</strong>, then use the download button.
-              Multiple pictures come in one ZIP file.
+              <p>
+                <strong>Save as a picture:</strong> select
+                <strong>JPEG image</strong> or <strong>PNG image</strong> under
+                <strong>Export format</strong>, choose all pages or a single
+                page under <strong>Export pages</strong>, then use the download
+                button. Multiple pictures come in one ZIP file.
+              </p>
             </li>
             <li>
-              <strong>Let the scanner crop:</strong> enable
-              <strong
-                >Automatically crop and add confidently detected pages</strong
-              >. Confident outlines are saved directly; uncertain outlines stay
-              in the crop screen. Inspect saved thumbnails and correct them with
-              Edit / Retake when needed.
+              <p>
+                <strong>Let the scanner crop:</strong> enable
+                <strong
+                  >Automatically crop and add confidently detected pages</strong
+                >. Confident outlines are saved directly; uncertain outlines
+                stay in the crop screen. Inspect saved thumbnails and correct
+                them with Edit / Retake when needed.
+              </p>
+            </li>
+            <li>
+              <p>
+                <strong>Better text recognition:</strong> use Accurate quality,
+                OCR contrast preparation, and the optional second preparation.
+                Compare the results and inspect uncertain words before saving.
+              </p>
+            </li>
+            <li>
+              <p>
+                <strong>Editable Word document:</strong> use
+                <strong>Save review &amp; download Word</strong> inside Text /
+                identify, or <strong>Download Word (.docx)</strong> beside
+                Download text.
+              </p>
             </li>
           </ul>
         </section>
@@ -527,10 +612,10 @@
             </li>
             <li>
               Name the document, choose <strong>Export format</strong> (PDF,
-              JPEG, or PNG) and <strong>Export pages</strong>, then select the
-              download button. For PDF, select <strong>Download PDF</strong>. To
-              make the PDF searchable, recognize and review its text first as
-              described below.
+              JPEG, PNG, or Word) and <strong>Export pages</strong>, then select
+              the download button. For PDF, select
+              <strong>Download PDF</strong>. To make the PDF searchable,
+              recognize and review its text first as described below.
             </li>
           </ol>
         </section>
@@ -898,49 +983,81 @@
           </p>
         </details>
         <details class="guide-section">
-          <summary>7. Recognize text and make PDFs searchable</summary>
+          <summary>7. Recognize text and download Word</summary>
           <ol>
-            <li>Select <strong>Text / identify</strong> on a saved page.</li>
             <li>
-              Choose <strong>Text language</strong>. Fourteen languages are
-              available: English, French, Spanish, German, Portuguese, Arabic,
-              Hindi, simplified Chinese, Russian, Ukrainian, Japanese, Korean,
-              Yoruba, and Italian.
+              Select <strong>Text / identify</strong> on a saved page and choose
+              <strong>Text language</strong>. Fourteen languages are available.
             </li>
             <li>
-              If needed, download the language while online. See the offline
-              instructions below.
+              Choose <strong>Accurate</strong> quality (default) for the larger
+              recognition model, or <strong>Fast</strong> for smaller downloads
+              and quicker processing. Each quality has its own language
+              download. Download the selected language and quality while online.
             </li>
             <li>
-              Optional <strong>Detect text orientation</strong> checks four
-              rotations and corrects the page when recognition improves. Leave
-              it on for sideways text; turn it off to save time on a clear,
-              upright page.
+              Choose the text layout: Auto, a single block, sparse text/posters,
+              or a single line. Start with Auto for ordinary documents.
             </li>
             <li>
-              Select <strong>Recognize text</strong>. Use
-              <strong>Cancel operation</strong> if you want to stop.
+              Leave OCR contrast preparation enabled for faint text. This
+              prepares a separate recognition image; your saved scan keeps its
+              colors.
+              <strong>Compare two text preparations (slower)</strong> runs an
+              additional preparation to handle uneven lighting and light
+              lettering on dark backgrounds.
             </li>
             <li>
-              Read and correct <strong>Recognized text</strong>,
+              Optional <strong>Detect text orientation</strong> checks
+              rotations. Turn it off for an upright page to save time. Select
+              <strong>Recognize text</strong>;
+              <strong>Cancel operation</strong> stops processing.
+            </li>
+            <li>
+              Compare the recognition results using the result selector.
+              Corrections are kept separately while switching results. Expand
+              the source image and select an uncertain word to inspect its
+              enlarged image. Engine confidence is a review aid, not a measured
+              accuracy percentage.
+            </li>
+            <li>
+              Correct <strong>Recognized text</strong>,
               <strong>Document type</strong>, and
-              <strong>Suggested fields</strong>. Pay particular attention to
-              names, dates, document numbers, and amounts. Average confidence is
-              a hint, not a guarantee.
+              <strong>Suggested fields</strong>, especially names, dates and
+              amounts. Select <strong>Save review</strong>, or
+              <strong>Save review &amp; download Word</strong> to save and
+              immediately download the current page as an editable .docx file.
+              Closing without saving discards the new recognition result.
             </li>
             <li>
-              Select <strong>Save review</strong> to accept the result. Closing
-              without saving does not accept the new recognition result.
+              Repeat for other pages. Use
+              <strong>Download Word (.docx)</strong> beside Download text, or
+              choose Word under Export format. Both main Word download actions
+              follow <strong>Export pages</strong>.
             </li>
-            <li>Repeat for other pages, then download the PDF or text file.</li>
           </ol>
           <p>
-            Reviewed text and manual corrections can be included in PDF search.
-            Corrected text may have approximate selection positions, and the
-            visible scan is not rewritten. Search/selection behavior varies by
-            PDF reader, especially for right-to-left text.
-            <strong>Download text</strong> provides a UTF-8 copy when you need
-            the text separately.
+            Word downloads are genuine editable Office Open XML documents and
+            preserve Unicode text. At least one selected page must have saved
+            reviewed text. Other selected pages receive a clear missing-text or
+            review-needed note; stale text is excluded. Word export reproduces
+            the reviewed words and paragraph breaks, with page headings, rather
+            than reconstructing the original tables, artwork or exact layout. It
+            works offline once the app is cached.
+          </p>
+          <p>
+            Reviewed text and manual corrections can also be included in PDF
+            search. Corrected text may have approximate selection positions; the
+            visible scan is unchanged. PDF reader support varies, especially for
+            right-to-left text. <strong>Download text</strong> provides a
+            separate UTF-8 copy.
+          </p>
+          <p>
+            For best results, crop closely, use a sharp high-resolution image
+            and even light. Handwriting, decorative lettering, blur and very
+            small text still need manual correction. Higher accuracy models and
+            the second pass take longer and use more memory; choose Fast or
+            disable the second pass on slower devices.
           </p>
         </details>
         <details class="guide-section">
@@ -1018,17 +1135,17 @@
               barcode, and Guide files can be cached.
             </li>
             <li>
-              Open <strong>Text / identify</strong>, select a language, and
-              choose <strong>Download language for offline use</strong>.
-              Recognition can also prepare a missing language automatically
-              while online.
+              Open <strong>Text / identify</strong>, select a language and
+              recognition quality, and choose
+              <strong>Download language for offline use</strong>. Recognition
+              can also prepare a missing language automatically while online.
             </li>
             <li>
               Wait for
               <strong>Language downloaded and ready for offline OCR</strong>.
-              The shared engine plus English model is about 7.7 MB; other
-              language sizes vary. The app checks downloads before reporting
-              readiness.
+              The shared engine plus English model is about 18.4 MB for Accurate
+              or 7.7 MB for Fast; other language sizes vary. The app checks
+              downloads before reporting readiness.
             </li>
             <li>
               Before relying on offline work, turn off the connection, reopen
@@ -1040,9 +1157,9 @@
             <strong>Cancel operation</strong> stops a download or recognition.
             Completed shared assets may remain for a retry.
             <strong>Remove downloaded language</strong> removes the selected
-            model without deleting scanned pages; a shared engine may remain for
-            other languages. Select and download any additional languages
-            separately.
+            language and quality model without deleting scanned pages; a shared
+            engine may remain for other languages. Select and download any
+            additional languages separately.
           </p>
           <p>
             Clearing browser data or storage eviction can remove downloaded
@@ -1055,14 +1172,14 @@
           <summary>12. Export, draft recovery, and privacy</summary>
           <p>
             Set <strong>Document name</strong> before downloading.
-            <strong>Export format</strong> offers PDF, JPEG, and PNG, and
-            <strong>Export pages</strong> selects all pages or one saved page.
-            PDF keeps selected pages in one document with eligible reviewed
-            search text. A single JPEG or PNG downloads directly as an image;
-            multiple images download together in a ZIP with numbered filenames.
-            Images do not contain a searchable OCR text layer. PNG is a real
-            lossless file encoding of the saved page, but converting an older
-            saved JPEG cannot undo its earlier compression or recover lost
+            <strong>Export format</strong> offers PDF, JPEG, PNG, and Word
+            (.docx), and <strong>Export pages</strong> selects all pages or one
+            saved page. PDF keeps selected pages in one document with eligible
+            reviewed search text. A single JPEG or PNG downloads directly as an
+            image; multiple images download together in a ZIP with numbered
+            filenames. Images do not contain a searchable OCR text layer. PNG is
+            a real lossless file encoding of the saved page, but converting an
+            older saved JPEG cannot undo its earlier compression or recover lost
             colors. Image exports work offline after the app is cached.
             <strong>Download text</strong> exports available page text and
             fields in UTF-8. It becomes available when at least one page has
@@ -1071,7 +1188,7 @@
             current draft so you can continue working; it does not reset the
             document.
           </p>
-          <h3>Export PDF, JPEG, or PNG step by step</h3>
+          <h3>Export PDF, JPEG, PNG, or Word step by step</h3>
           <ol>
             <li>
               Finish reviewing the saved pages and put them in the order you
@@ -1182,7 +1299,7 @@
             If the new controls or updated instructions are missing, export any
             unsaved work first, reconnect, close <strong>all</strong> scanner
             tabs/windows (including an installed scanner window), and reopen the
-            site. Open Guide and check for version <strong>3.3.1</strong>. Do
+            site. Open Guide and check for version <strong>3.4.0</strong>. Do
             not clear browser storage just to update the app: doing so can
             remove drafts and downloaded OCR languages.
           </p>

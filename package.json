@@ -1,9 +1,9 @@
 {
   "name": "juo-legacy-scanner",
-  "version": "3.3.1",
+  "version": "3.4.0",
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "check": "node --check script.js && node --check scan-core.js && node --check service-worker.js && node --check offline-ocr.js && node --check pdf-text.js && node --check page-model.js && node --check page-editor.js && node --check camera-controls.js && node --check image-export.js"
+    "check": "node --check script.js && node --check scan-core.js && node --check service-worker.js && node --check offline-ocr.js && node --check pdf-text.js && node --check page-model.js && node --check page-editor.js && node --check camera-controls.js && node --check image-export.js && node --check ocr-prep.js && node --check ocr-review.js && node --check word-export.js"
   }
 }

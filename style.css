@@ -320,3 +320,25 @@ summary {
 #helpModal a {
   color: #236347;
 }
+
+#ocrSourcePreview {
+  display: block;
+  width: 100%;
+  max-height: 40vh;
+  object-fit: contain;
+}
+#ocrWordPreview {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #eee;
+  margin: 10px 0;
+}
+#uncertainWords {
+  max-height: 150px;
+  overflow: auto;
+}
+#ocrReviewSummary,
+#wordExportStatus {
+  white-space: pre-line;
+}

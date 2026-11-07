@@ -13,7 +13,8 @@ for i,line in enumerate(['INVOICE','Invoice No: INV-2026-11','Date: 2026-11-04',
 fixture.save('/tmp/scanner-followup.png')
 with sync_playwright() as p:
  browser=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium' if Path('/usr/bin/chromium').exists() else None),headless=True,args=['--no-sandbox'])
- context=browser.new_context(accept_downloads=True,viewport={'width':390,'height':844});page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
+ context=browser.new_context(accept_downloads=True,viewport={'width':390,'height':844});context.add_init_script("document.addEventListener('DOMContentLoaded',()=>{const s=document.getElementById('ocrAccuracy');if(s)s.value='fast';});")
+ page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.goto(url);page.wait_for_function('!state.restoring');page.wait_for_function('navigator.serviceWorker.controller !== null')
  page.locator('#importFile').set_input_files('/tmp/scanner-followup.png');page.wait_for_selector('#cropModal[open]')
  page.locator('#bookControls summary').click();page.locator('#topCurve').fill('8');page.wait_for_function('document.getElementById("bookPreview").width>10')

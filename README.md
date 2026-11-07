@@ -42,13 +42,17 @@ Sources and undo versions increase local storage and memory use. Browser quotas/
 
 Tesseract.js 5.1.1 is bundled locally. Fourteen language packs are available: English, French, Spanish, German, Portuguese, Arabic, Hindi, simplified Chinese, Russian, Ukrainian, Japanese, Korean, Yoruba and Italian. Language recognition does not imply multilingual category/field extraction: classification cues and most field labels currently target English documents.
 
-Choose a language and use **Download language for offline use** while connected. The app downloads the shared LSTM core and selected fast language model, checks exact byte lengths and SHA-256 hashes, and saves them separately from the application shell. The status reports readiness only when both are present. The English pack plus shared core is about 7.7 MB; other language sizes vary. Recognition can prepare a missing pack automatically while online. Downloads and recognition can be cancelled. Completed valid shared downloads are retained for retry; failed or corrupted downloads are not accepted as ready. A downloaded language can be removed without clearing scanned documents.
+Choose a language and use **Download language for offline use** while connected. The app downloads the shared LSTM core and selected Accurate (default) or Fast language model, checks exact byte lengths and SHA-256 hashes, and saves them separately from the application shell. The status reports readiness only when both are present. The English pack plus shared core is about 18.4 MB for Accurate or 7.7 MB for Fast; other language sizes vary. Recognition can prepare a missing pack automatically while online. Downloads and recognition can be cancelled. Completed valid shared downloads are retained for retry; failed or corrupted downloads are not accepted as ready. A downloaded language can be removed without clearing scanned documents.
 
-Models are pinned to a `tessdata_fast` Git commit; engine assets are pinned to Tesseract core 5.1.1. Remote downloads go to jsDelivr and raw.githubusercontent.com, and carry no scanned images. Workers read prepared assets through same-origin service-worker routes, so fresh recognition works after an offline reload. Browser data eviction or clearing site storage can remove packs: check readiness again before relying on offline use. Initial setup requires a browser with service workers and CacheStorage over HTTPS or localhost.
+Models are pinned to `tessdata_best` and `tessdata_fast` Git commits; engine assets are pinned to Tesseract core 5.1.1. Remote downloads go to jsDelivr and raw.githubusercontent.com, and carry no scanned images. Workers read prepared assets through same-origin service-worker routes, so fresh recognition works after an offline reload. Browser data eviction or clearing site storage can remove packs: check readiness again before relying on offline use. Initial setup requires a browser with service workers and CacheStorage over HTTPS or localhost.
 
 PDFs use Unicode `/ActualText` marked content in PDF 1.7. Unedited OCR words retain their coordinates. Reviewed text, including manual corrections and added lines, remains searchable with approximate line positions when the original word boxes are no longer valid. The text layer never changes the visible scan. Unicode extraction has been tested with Poppler across Latin, Greek, Cyrillic, Chinese, Hindi and emoji; PDF-reader search/selection behavior can vary, especially for bidirectional text. UTF-8 text export remains available. This is not PDF/A or a guarantee of OCR accuracy.
 
 Barcode recognition uses the native `BarcodeDetector` first, then a bundled ZXing 0.21.3 decoder for QR and common 1D/2D formats. The fallback checks four rotations and works offline after the shell is cached. The current UI returns one decoded result per page; it does not promise to enumerate every barcode. Recognition does not validate an ID or authenticate a document.
+
+OCR uses contrast preparation and optional adaptive second-pass comparison without altering the saved scan. Layout choices, per-result corrections, source previews and uncertain-word crops support manual review. Controlled faint, shadowed and mixed-polarity fixtures compare the real engine against the previous fast direct-image path; this is not a guarantee for every document.
+
+**Download Word (.docx)** and **Save review & download Word** create genuine editable OOXML files using reviewed text. Main downloads follow the selected page scope; missing or stale pages receive explicit notes. Unicode and paragraph breaks are preserved; original table/artwork layout is not reconstructed. Word export also works offline.
 
 ## Offline use and privacy
 
@@ -78,6 +82,9 @@ python -m playwright install chromium
 python tests/browser_checks.py
 python tests/followup_checks.py
 python tests/editor_checks.py
+python tests/quality_browser_checks.py
+python tests/word_ocr_checks.py
+SCANNER_ASSET_FIXTURES=/tmp/scanner-ocr-fixtures python tests/ocr_accuracy_checks.py
 # Optional: real OCR/orientation integration; downloads engines and language data.
 SCANNER_TEST_OCR=1 python tests/browser_checks.py
 # Verify a fresh worker can recognize text after an offline reload:
